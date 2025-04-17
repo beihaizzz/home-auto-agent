@@ -1,0 +1,8 @@
+{
+  "dependencies": ["./HomeBuddyAgent"],
+  "graphs": {
+    "HomeBuddyAgent": "./HomeBuddyAgent/agent.py:graph",
+    "deep_planner_v1": "./deep_planner_v1/agent.py:graph"
+  },
+  "env": ".env.dev"
+}
