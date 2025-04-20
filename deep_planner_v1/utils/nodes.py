@@ -3,6 +3,7 @@ from datetime import datetime, date
 from functools import lru_cache
 
 from langchain_chroma import Chroma
+from langchain_core.documents import Document
 from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -15,7 +16,7 @@ from deep_planner_v1.utils.states import SchemePlanState, SceneState
 from deep_planner_v1.utils.redis_cache import RedisSchemeCache
 
 from deep_planner_v1.utils.structs import Scene, Scenes, Scheme, Schemes
-from common.structs import Queries
+from common.structs import Queries, DeviceModelFactory, DeviceCalls
 from pydantic import create_model, Field
 from typing import Dict, Any, Literal
 
@@ -46,7 +47,6 @@ def _generate_device_model(device_json: Dict[str, Any]) -> type:
     # 创建模型类，命名格式为设备名称首字母大写 + "Params"
     model_name = f"{device_name.capitalize()}Params"
     return create_model(model_name, **fields)
-
 
 
 from typing import List
@@ -83,8 +83,11 @@ def init_state(state: SceneState):
     :return:
     """
     vector_store = rag_loder()
-    docs = vector_store.get()['documents']
-    device_configs = [json.loads(config_str) for config_str in docs]
+
+    docs: List[Document] = []
+    for s in vector_store.get()['documents']:
+        docs.append(Document(page_content=s))
+    device_configs = docs
     date_now = datetime.now()
     return {
         "date": date_now,
@@ -113,17 +116,22 @@ def generate_scenes(state: SceneState, config: RunnableConfig) -> Command[
         model_provider=configurable.planner_provider,
         model_name=configurable.planner_model
     )
-    model_with_structured_output = model.with_structured_output(Scenes)
+    factory = DeviceModelFactory()
+    factory.generate_all(device_configs)
+    ConfigUnion = factory.get_union_type()
+    ScenesDynamic = Scenes[ConfigUnion]
+    ScenesDynamic.__name__ = "ScenesDynamic"
+    model_with_structured_output = model.with_structured_output(ScenesDynamic)
     print(scheme_plan_prompt)
     query = scheme_plan_prompt.format(
         date=today_date,
         device_configs=device_configs,
         location=state['location']
     )
-    response: Scenes = model_with_structured_output.invoke([
+    scenes: Scenes = model_with_structured_output.invoke([
         SystemMessage(content=query)
     ])
-    scenes = _add_config_for_scenes(device_configs, response)
+    # scenes = _add_config_for_scenes(device_configs, response)
     print("---------------------生成的场景的数量--------------------------------")
     print(len(scenes.scenes))
     return Command(
@@ -225,7 +233,12 @@ def design_scheme(state: SchemePlanState, config: RunnableConfig):
         model_provider=configurable.planner_provider,
         model_name=configurable.planner_model
     )
-    model_with_structured_output = model.with_structured_output(Scheme)
+    factory = DeviceModelFactory()
+    factory.generate_all(state['device_configs'])
+    ConfigUnion = factory.get_union_type()
+    SchemeDynamic = Scheme[ConfigUnion]
+    SchemeDynamic.__name__ = "SchemeDynamic"
+    model_with_structured_output = model.with_structured_output(SchemeDynamic)
     query = scheme_gen_prompt.format(
         scene=scene,
         source_strs=source_strs

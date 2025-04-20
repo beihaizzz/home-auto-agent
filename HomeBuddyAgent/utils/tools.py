@@ -1,7 +1,11 @@
+import asyncio
 import json
+import os
 
 from typing import Annotated, List
 
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
 from redis.asyncio import Redis as AsyncRedis  # 使用 redis.asyncio 的异步客户端
 import requests
 
@@ -18,8 +22,6 @@ from common.common_utils import rag_loder
 
 async def get_redis_client():
     return await AsyncRedis(host='localhost', port=6379, db=0, decode_responses=True, password="2168")
-
-
 
 
 @tool
@@ -50,11 +52,19 @@ async def retriever_tool(query_list: List[str], tool_call_id: Annotated[str, Inj
         search_results = [Document(page_content=content) for content in json.loads(cached_result)]
     else:
         # 如果缓存不存在，执行搜索
-        vectorstore = rag_loder()
+        vectorstore =rag_loder()
+        # persist_directory = os.getenv("VECTOR_STORE_PATH")
+        # embeddings = OpenAIEmbeddings(
+        # )
+        # vectorstore = Chroma(
+        #     collection_name="vector_collection_for_agent",
+        #     embedding_function=embeddings,
+        #     persist_directory=persist_directory
+        # )
         search_results: List[Document] = []
         for query in query_list:
             # 使用向量存储进行相似性搜索，获取最相关的1个结果
-            search_result = vectorstore.similarity_search(query=query, k=1)
+            search_result = await vectorstore.asimilarity_search(query=query, k=1)
             search_results += search_result
 
         # 将搜索结果存入 Redis 缓存（异步操作）

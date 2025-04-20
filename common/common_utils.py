@@ -14,6 +14,7 @@ from tavily import AsyncTavilyClient
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
 @lru_cache(maxsize=1)
 def rag_loder():
     persist_directory = os.getenv("VECTOR_STORE_PATH")
@@ -26,6 +27,7 @@ def rag_loder():
     )
     return vector_store
 
+
 @lru_cache(maxsize=4)
 def get_model(model_provider: str, model_name: str):
     env = os.getenv("ENV", "dev")  # 默认测试环境
@@ -36,10 +38,10 @@ def get_model(model_provider: str, model_name: str):
     elif model_provider == "anthropic":
         model = ChatAnthropic(model_name=model_name)
     elif model_provider == "openai":
-        model = ChatOpenAI(model_name=model_name)
+        model = ChatOpenAI(model_name=model_name,)
     elif model_provider == "deepseek":
         # 注意这里的deepseek是硅基流动的
-        model= init_chat_model(model_name)
+        model = init_chat_model(model_name)
     else:
         raise ValueError(f"Unsupported model type: {model_provider}")
     return model

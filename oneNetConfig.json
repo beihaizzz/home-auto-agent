@@ -10,7 +10,7 @@
       "description": "设备名称",
       "value": "d1"
     },
-    "device_type": "LED灯",
+    "device_type": "LED Light",
     "params": {
       "type": "object",
       "description": "控制参数，字典格式",
@@ -34,7 +34,7 @@
       "description": "设备名称",
       "value": "空调"
     },
-    "device_type": "空调",
+    "device_type": "Air Conditioner",
     "params": {
       "type": "object",
       "description": "控制参数，字典格式",
@@ -73,7 +73,7 @@
       "description": "设备名称",
       "value": "风扇"
     },
-    "device_type": "电风扇",
+    "device_type": "Electric Fan",
     "params": {
       "type": "object",
       "description": "控制参数，字典格式",
@@ -107,7 +107,7 @@
       "description": "设备名称",
       "value": "加湿器"
     },
-    "device_type": "加湿器",
+    "device_type": "Humidifier",
     "params": {
       "type": "object",
       "description": "控制参数，字典格式",
@@ -141,7 +141,7 @@
       "description": "设备名称",
       "value": "音箱"
     },
-    "device_type": "音响",
+    "device_type": "Speaker",
     "params": {
       "type": "object",
       "description": "控制参数，字典格式",
@@ -175,7 +175,7 @@
       "description": "设备名称",
       "value": "电池"
     },
-    "device_type": "智能电池",
+    "device_type": "Smart Battery",
     "params": {
       "type": "object",
       "description": "控制参数，字典格式",
@@ -209,7 +209,7 @@
       "description": "设备名称",
       "value": "电视"
     },
-    "device_type": "智能电视",
+    "device_type": "Smart TV",
     "params": {
       "type": "object",
       "description": "控制参数，字典格式",
@@ -248,7 +248,7 @@
       "description": "设备名称",
       "value": "窗帘"
     },
-    "device_type": "智能窗帘",
+    "device_type": "Smart Curtain",
     "params": {
       "type": "object",
       "description": "控制参数，字典格式",
@@ -282,7 +282,7 @@
       "description": "设备名称",
       "value": "门锁"
     },
-    "device_type": "智能门锁",
+    "device_type": "Smart Lock",
     "params": {
       "type": "object",
       "description": "控制参数，字典格式",

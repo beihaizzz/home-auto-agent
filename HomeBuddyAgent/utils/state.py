@@ -8,7 +8,7 @@ from langchain_core.documents import Document
 
 
 from HomeBuddyAgent.utils.structs import AdditionalInfo
-from common.structs import DeviceCall, DeviceResult, DeviceCalls, SearchQuery
+from common.structs import DeviceCall, DeviceResult, DeviceCalls, SearchQuery,ConfigT
 
 
 def reduce_feed_back(existing: Optional[bool], new: Optional[bool]) -> bool:
@@ -49,7 +49,7 @@ class State(MessagesState):
     time_now: datetime  # init的时候进行初始化
     feed_back: Annotated[bool, reduce_feed_back]
     device_call_results: Annotated[List[DeviceResult], reduce_device_results]
-    device_calls: DeviceCalls
+    device_calls: DeviceCalls[ConfigT]
     additional_info: Annotated[List[AdditionalInfo], reduce_additional_info]
 
 

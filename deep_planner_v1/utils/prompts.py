@@ -187,18 +187,19 @@ Use the following format for your output:
 
 <output>
 ```python
-class DeviceCall(BaseModel):
+class DeviceCall(BaseModel, Generic[ConfigT]):
     device_name: str
     device_id: str
-    params: Dict[str, Any]
+    config: ConfigT = Field(
+        description="the params for device_call which comes from the device_configs",
+    )
     order: int = Field(
         description="The order of the device call in the scene.",
-        ge=0,
     )
 
 
-class Scheme(BaseModel):
-    device_calls: List[DeviceCall]
+class Scheme(BaseModel,Generic[ConfigT]):
+    device_calls: List[DeviceCall[ConfigT]]
     scene: Scene
 ```
 

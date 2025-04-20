@@ -254,19 +254,20 @@ This will help ensure a thorough interpretation of the data and proper structuri
 Your final output should be a structured DeviceCalls object as defined below:
 
 ```python
-class DeviceCall(BaseModel):
+class DeviceCall(BaseModel, Generic[ConfigT]):
     device_name: str
     device_id: str
-    params: Dict[str, Any] = Field(
-        description="the params for device_call which comes from the device_configs which is required",
-        json_schema_extra={"additionalProperties": False}  # Explicitly prohibit additional properties
+    config: ConfigT = Field(
+        description="the params for device_call which comes from the device_configs",
+        json_schema_extra={"additionalProperties": False}  # 明确禁止额外属性
     )
     order: int = Field(
         description="The order of the device call in the scene.",
     )
 
-class DeviceCalls(BaseModel):
-    device_calls: List[DeviceCall] = Field(
+
+class DeviceCalls(BaseModel, Generic[ConfigT]):
+    device_calls: List[DeviceCall[ConfigT]] = Field(
         description="List of device calls.",
     )
 ```

@@ -7,7 +7,7 @@ from langgraph.types import Command, Send
 
 from HomeBuddyAgent.utils.structs import RouterScore
 from common.common_utils import get_search_params, select_and_execute_search,get_model
-from common.structs import Queries, DeviceCalls, DeviceCall, DeviceResult
+from common.structs import Queries, DeviceCalls, DeviceCall, DeviceResult,DeviceModelFactory
 from HomeBuddyAgent.utils.prompts import node_agent_prompt, \
     node_retrieve_missing_info_prompt, additional_info_prompt, \
     node_generate_prompt_device_call, prompt_for_feedback, command_router_prompt, query_gen_prompt
@@ -46,7 +46,7 @@ def filter(state: State):
         "device_call_results": [],
         "device_calls": DeviceCalls(
             device_calls=[]
-        )
+        ),
     }
 
 
@@ -119,7 +119,8 @@ def command_router(state: State, config: RunnableConfig) -> Command[Literal["exe
                 {
                     "question": state['question'],
                     "device_configs": state['device_configs'],
-                    "tool_using": False
+                    "tool_using": False,
+                    "feed_back":False
                 }
             )
         )
@@ -411,7 +412,13 @@ def generate(state: State, config: RunnableConfig) -> Command[Literal["call_devi
             model_provider=configurable.structured_output_provider,
             model_name=configurable.structured_output_model
         )
-        model = model.with_structured_output(DeviceCalls)
+        factory = DeviceModelFactory()
+        factory.generate_all(state['device_configs'])
+        ConfigUnion = factory.get_union_type()
+        DeviceCallsDynamic = DeviceCalls[ConfigUnion]
+        DeviceCallsDynamic.__name__ = "DeviceCallsDynamic"
+        print(f"{DeviceCallsDynamic.__name__}+++++++++++++++++++++++++++++++++++++++++++++++++")
+        model = model.with_structured_output(DeviceCallsDynamic)
         template = Template(node_generate_prompt_device_call, autoescape=False)
         query = template.render(
             {"question": state["question"], "device_configs": [docs_content],
