@@ -2,13 +2,13 @@ from datetime import datetime
 import operator
 from typing import List, Annotated, Optional, Sequence, TypedDict
 
+from langchain_chroma import Chroma
 from langchain_core.messages import ToolMessage, AnyMessage
 from langgraph.graph import MessagesState, add_messages
 from langchain_core.documents import Document
 
-
 from HomeBuddyAgent.utils.structs import AdditionalInfo
-from common.structs import DeviceCall, DeviceResult, DeviceCalls, SearchQuery,ConfigT
+from common.structs import DeviceCall, DeviceResult, DeviceCalls, SearchQuery, ConfigT
 
 
 def reduce_feed_back(existing: Optional[bool], new: Optional[bool]) -> bool:
@@ -51,6 +51,7 @@ class State(MessagesState):
     device_call_results: Annotated[List[DeviceResult], reduce_device_results]
     device_calls: DeviceCalls[ConfigT]
     additional_info: Annotated[List[AdditionalInfo], reduce_additional_info]
+    vector_store: Chroma
 
 
 class InfoState(TypedDict):

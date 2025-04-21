@@ -14,18 +14,18 @@ from langchain_core.messages import ToolMessage
 
 from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt import InjectedState
-from langgraph.types import Command, Send
+from langgraph.types import Command
 from langchain_community.tools.tavily_search import TavilySearchResults
 from HomeBuddyAgent.utils.state import State
-from common.common_utils import rag_loder
 
 
 async def get_redis_client():
-    return await AsyncRedis(host='localhost', port=6379, db=0, decode_responses=True, password="2168")
+    return await AsyncRedis(host='localhost', port=6379, db=0, decode_responses=True, password=os.getenv("REDIS_PASSWORD"))
 
 
 @tool
 async def retriever_tool(query_list: List[str], tool_call_id: Annotated[str, InjectedToolCallId],
+                         state: Annotated[State, InjectedState]
                          ):
     """
         Search for device configuration data in a document based on a list of query keywords and return the most relevant device information.
@@ -52,15 +52,7 @@ async def retriever_tool(query_list: List[str], tool_call_id: Annotated[str, Inj
         search_results = [Document(page_content=content) for content in json.loads(cached_result)]
     else:
         # 如果缓存不存在，执行搜索
-        vectorstore =rag_loder()
-        # persist_directory = os.getenv("VECTOR_STORE_PATH")
-        # embeddings = OpenAIEmbeddings(
-        # )
-        # vectorstore = Chroma(
-        #     collection_name="vector_collection_for_agent",
-        #     embedding_function=embeddings,
-        #     persist_directory=persist_directory
-        # )
+        vectorstore =state['vector_store']
         search_results: List[Document] = []
         for query in query_list:
             # 使用向量存储进行相似性搜索，获取最相关的1个结果

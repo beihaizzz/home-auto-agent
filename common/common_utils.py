@@ -16,7 +16,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 @lru_cache(maxsize=1)
-def rag_loder():
+def rag_loader():
     persist_directory = os.getenv("VECTOR_STORE_PATH")
     embeddings = OpenAIEmbeddings(
     )

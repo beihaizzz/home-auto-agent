@@ -4,12 +4,12 @@ from functools import lru_cache
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langgraph.types import Command, Send
 
-from common.common_utils import get_search_params, select_and_execute_search, rag_loder, get_model
+from common.common_utils import get_search_params, select_and_execute_search, rag_loader, get_model
 from common.configuration import Configuration
 from deep_planner_v1.utils.prompts import scheme_plan_prompt, query_gen_prompt, scheme_gen_prompt
 from deep_planner_v1.utils.states import SchemePlanState, SceneState
@@ -82,7 +82,7 @@ def init_state(state: SceneState):
     :param state:
     :return:
     """
-    vector_store = rag_loder()
+    vector_store = rag_loader()
 
     docs: List[Document] = []
     for s in vector_store.get()['documents']:
@@ -129,7 +129,8 @@ def generate_scenes(state: SceneState, config: RunnableConfig) -> Command[
         location=state['location']
     )
     scenes: Scenes = model_with_structured_output.invoke([
-        SystemMessage(content=query)
+        # SystemMessage(content=query)
+        HumanMessage(content=query)
     ])
     # scenes = _add_config_for_scenes(device_configs, response)
     print("---------------------生成的场景的数量--------------------------------")
@@ -175,7 +176,10 @@ def generate_queries(state: SchemePlanState, config: RunnableConfig):
         location=state['location'],
         device_configs=[device.config for device in scene.involved_devices],
     )
-    response = model_with_structured_output.invoke([SystemMessage(content=query)])
+    response = model_with_structured_output.invoke([
+        # SystemMessage(content=query)
+        HumanMessage(content=query)
+    ])
     print(response)
     return {
         "search_queries": response.queries
@@ -243,7 +247,10 @@ def design_scheme(state: SchemePlanState, config: RunnableConfig):
         scene=scene,
         source_strs=source_strs
     )
-    response = model_with_structured_output.invoke([SystemMessage(content=query)])
+    response = model_with_structured_output.invoke([
+        # SystemMessage(content=query)
+        HumanMessage(content=query)
+    ])
     return {
         "scheme": response,
         "schemes_list": [response]
