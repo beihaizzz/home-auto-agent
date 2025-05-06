@@ -12,7 +12,7 @@ from HomeBuddyAgent.utils.prompts import node_agent_prompt, \
     node_generate_prompt_device_call, prompt_for_feedback, command_router_prompt, query_gen_prompt
 from HomeBuddyAgent.utils.state import State, InfoState
 from HomeBuddyAgent.utils.structs import AdditionalInfo
-from HomeBuddyAgent.utils.tools import retriever_tool, tools_for_info
+from HomeBuddyAgent.utils.tools import retriever_tool
 from common.configuration import Configuration
 
 from typing import Literal
@@ -354,7 +354,7 @@ async def search_web(state: InfoState, config: RunnableConfig):
 
 
 
-collect_info = ToolNode(tools_for_info)
+
 
 
 def generate(state: State, config: RunnableConfig) -> Command[Literal["call_devices", "__end__"]]:

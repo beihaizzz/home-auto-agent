@@ -13,6 +13,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from HomeBuddyAgent.utils.state import State
 from common.common_utils import rag_loader
+from asyncio import to_thread
 
 
 async def get_redis_client():
@@ -49,7 +50,8 @@ async def retriever_tool(query_list: List[str], tool_call_id: Annotated[str, Inj
         search_results = [Document(page_content=content) for content in json.loads(cached_result)]
     else:
         # 如果缓存不存在，执行搜索
-        vectorstore = rag_loader()
+        vectorstore = await to_thread(rag_loader)
+
         # vectorstore = state['vector_store']
         search_results: List[Document] = []
         for query in query_list:
@@ -82,7 +84,3 @@ async def retriever_tool(query_list: List[str], tool_call_id: Annotated[str, Inj
             "device_configs": search_results,
         }
     )
-
-
-
-
