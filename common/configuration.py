@@ -1,13 +1,17 @@
 import os
 from enum import Enum
-from dataclasses import dataclass, fields
+from dataclasses import  fields
 from typing import Any, Optional, Dict
 
 from langchain_core.runnables import RunnableConfig
 from dataclasses import dataclass
 
 
-class SearchAPI(Enum):
+class BaseProvider(Enum):
+    pass
+
+
+class SearchAPI(BaseProvider):
     PERPLEXITY = "perplexity"
     TAVILY = "tavily"
     EXA = "exa"
@@ -16,31 +20,36 @@ class SearchAPI(Enum):
     LINKUP = "linkup"
 
 
-class PlannerProvider(Enum):
+class PlannerProvider(BaseProvider):
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
     GROQ = "groq"
     DEEPSEEK = "deepseek"
+    QWEN = "qwen"
 
-class WriterProvider(Enum):
+
+class WriterProvider(BaseProvider):
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
     GROQ = "groq"
     DEEPSEEK = "deepseek"
+    QWEN = "qwen"
 
 
-class ToolCallProvider(Enum):
+class ToolCallProvider(BaseProvider):
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
     GROQ = "groq"
     DEEPSEEK = "deepseek"
+    QWEN = "qwen"
 
 
-class StructuredOutputProvider(Enum):
+class StructuredOutputProvider(BaseProvider):
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
     GROQ = "groq"
     DEEPSEEK = "deepseek"
+    QWEN = "qwen"
 
 
 @dataclass(kw_only=True)
@@ -58,6 +67,7 @@ class Configuration:
     tool_call_model: str = "gpt-4o-mini"
     search_api: SearchAPI = SearchAPI.TAVILY
     search_api_config: Optional[Dict[str, Any]] = None
+    think_switch: bool = False  # 专门为Qwen3设计的开关
 
     @classmethod
     def from_runnable_config(

@@ -9,13 +9,11 @@ from HomeBuddyAgent.utils.structs import RouterScore
 from common.common_utils import get_search_params, select_and_execute_search, get_model
 from common.structs import Queries, DeviceCalls, DeviceCall, DeviceResult, DeviceModelFactory
 from HomeBuddyAgent.utils.prompts import node_agent_prompt, \
-    node_retrieve_missing_info_prompt, additional_info_prompt, \
     node_generate_prompt_device_call, prompt_for_feedback, command_router_prompt, query_gen_prompt
 from HomeBuddyAgent.utils.state import State, InfoState
-from HomeBuddyAgent.utils.structs import AdditionalInfo, AdditionalInfos
+from HomeBuddyAgent.utils.structs import AdditionalInfo
 from HomeBuddyAgent.utils.tools import retriever_tool, tools_for_info
 from common.configuration import Configuration
-from common.common_utils import rag_loader
 
 from typing import Literal
 
@@ -33,7 +31,7 @@ def filter(state: State):
     :return:
     """
 
-    vs = rag_loader()
+    # vs = rag_loader()
     return {
         # 如果使用的工具中有state，就必须在调用之前将state中的键值初始化
         "messages": [HumanMessage(content=state['question'])],
@@ -48,7 +46,7 @@ def filter(state: State):
         "device_calls": DeviceCalls(
             device_calls=[]
         ),
-        "vector_store": vs
+        # "vector_store": vs
     }
 
 
@@ -80,6 +78,15 @@ def agent(state: State, config: RunnableConfig):
     prompt = SystemMessage(
         content=node_agent_prompt
     )
+    qwen_providers = (
+        configurable.planner_provider,
+        configurable.writer_provider,
+        configurable.structured_output_provider,
+        configurable.tool_call_provider,
+    )
+
+    if "qwen" in qwen_providers and not configurable.think_switch:
+        prompt = SystemMessage(content=f"{node_agent_prompt}/no_think")
     messages = [prompt] + messages
     print(messages)
     response = model.invoke(messages)
@@ -102,7 +109,17 @@ def command_router(state: State, config: RunnableConfig) -> Command[Literal["exe
          "device_configs": state['device_configs'],
          }
     )
-    score = llm_with_structured_output.invoke([SystemMessage(content=query)])
+    prompt = SystemMessage(content=query)
+    qwen_providers = (
+        configurable.planner_provider,
+        configurable.writer_provider,
+        configurable.structured_output_provider,
+        configurable.tool_call_provider,
+    )
+
+    if "qwen" in qwen_providers and not configurable.think_switch:
+        prompt = SystemMessage(content=f"{query}/no_think")
+    score = llm_with_structured_output.invoke([prompt])
     if score.command_score == "agent":
         return Command(
             goto=Send("additional_info_collect",
@@ -151,10 +168,7 @@ def check_command_clarity(state: State, config: RunnableConfig) -> Literal["gene
     )
     print(ClarityScore.schema())
     llm_with_tool = model.with_structured_output(ClarityScore)
-
-    # 提示模板，加入上下文
-    prompt = PromptTemplate(
-        template="""你是一个 AI 助手，负责评估用户自然语言命令在特定设备控制上下文中的清晰度和完整性。\n
+    template_str = """你是一个 AI 助手，负责评估用户自然语言命令在特定设备控制上下文中的清晰度和完整性。\n
         以下是上下文（设备配置、环境状态等）：\n\n {context} \n\n
         以下是用户的命令：{question} \n\n
         根据提供的上下文，评估该命令是否清晰且包含执行设备控制动作所需的所有必要参数。\n
@@ -193,10 +207,24 @@ def check_command_clarity(state: State, config: RunnableConfig) -> Literal["gene
              }}
            }}
            命令："打开加湿器"
-           评估：clarity_score='ambiguous', missing_info='缺少湿度级别和雾量参数，params 信息不完整'""",
+           评估：clarity_score='ambiguous', missing_info='缺少湿度级别和雾量参数，params 信息不完整'"""
+    # 提示模板，加入上下文
+    prompt = PromptTemplate(
+        template=template_str,
         input_variables=["context", "question"],
     )
+    qwen_providers = (
+        configurable.planner_provider,
+        configurable.writer_provider,
+        configurable.structured_output_provider,
+        configurable.tool_call_provider,
+    )
 
+    if "qwen" in qwen_providers and not configurable.think_switch:
+        prompt = PromptTemplate(
+            template=template_str + "/no_think",
+            input_variables=["context", "question"],
+        )
     # 创建处理链
     chain = prompt | llm_with_tool
 
@@ -228,27 +256,21 @@ def check_command_clarity(state: State, config: RunnableConfig) -> Literal["gene
         return "additional_info_collect"
 
 
-def should_feed_back(state: State) -> Literal["device_call", "end"]:
-    """"
-    根据反馈判断是否再次调用重试
-    """
-
-
-def clearly_check(state: State) -> Command[Literal["generate", "additional_info_collect"]]:
-    target = check_command_clarity(state)
-    if target == "additional_info_collect":
-        return Command(
-            goto=Send("additional_info_collect",
-                      {
-                          "question": state['question'],
-                          "device_configs": state['device_configs'],
-                      }
-                      )
-        )
-    elif target == "generate":
-        return Command(
-            goto="generate"
-        )
+# def clearly_check(state: State) -> Command[Literal["generate", "additional_info_collect"]]:
+#     target = check_command_clarity(state)
+#     if target == "additional_info_collect":
+#         return Command(
+#             goto=Send("additional_info_collect",
+#                       {
+#                           "question": state['question'],
+#                           "device_configs": state['device_configs'],
+#                       }
+#                       )
+#         )
+#     elif target == "generate":
+#         return Command(
+#             goto="generate"
+#         )
 
 
 # sub graph===================================================
@@ -274,7 +296,18 @@ def generate_queries(state: InfoState, config: RunnableConfig):
         "location": state['location'],
         "device_configs": state['device_configs']
     })
-    response = model_with_structured_output.invoke([SystemMessage(content=query)])
+    prompt = SystemMessage(content=query)
+
+    qwen_providers = (
+        configurable.planner_provider,
+        configurable.writer_provider,
+        configurable.structured_output_provider,
+        configurable.tool_call_provider,
+    )
+
+    if "qwen" in qwen_providers and not configurable.think_switch:
+        prompt = SystemMessage(content=f"{query}/no_think")
+    response = model_with_structured_output.invoke([prompt])
     print(response)
     return {
         "search_queries": response.queries
@@ -320,73 +353,6 @@ async def search_web(state: InfoState, config: RunnableConfig):
     }
 
 
-## 下面的原先检索的环节效果不佳
-def retrieve_missing_info(state: InfoState, config: RunnableConfig):
-    """
-    当指令不清晰时，智能调用工具搜寻缺失信息并更新状态。
-
-    Args:
-        state (messages): The current state containing the user's command and context
-
-    Returns:
-        dict: The updated state with retrieved information
-        :param config:
-    """
-    print("---检索缺失信息---")
-    # 初始化LLM
-    configurable = Configuration.from_runnable_config(config)
-    messages = state['sub_messages']
-    if messages and not messages[-1].tool_call_id:
-        # 如果最后一条消息并不是工具调用
-        # model = ChatOpenAI(model="gpt-4o")
-        model = get_model(
-            model_provider=configurable.tool_call_provider,
-            model_name=configurable.tool_call_model
-        )
-        model = model.bind_tools(tools_for_info, tool_choice="required")
-        query = node_retrieve_missing_info_prompt.format(
-            DEVICE_CONFIGS=state["device_configs"],
-            QUESTION=state["question"],
-            TIME_NOW=state['time_now'],
-            LOCATION=state['location']
-        )
-        # 调用LLM生成检索策略
-        response = model.invoke([SystemMessage(content=query)])
-        return {"sub_messages": [response]}
-    else:
-        # model = ChatGroq(model_name="qwen-2.5-32b", stream=True)
-        # model = ChatOpenAI(model="gpt-4o")
-        model = get_model(
-            model_provider=configurable.structured_output_provider,
-            model_name=configurable.structured_output_model
-        )
-        #TODO：这里仅仅只把web search作为了信息来源
-        model = model.with_structured_output(AdditionalInfos)
-
-        # 在这次调用中使用到的工具列表
-        tools = []
-        index: int = len(messages) - 1
-        while True and messages:
-            if messages[index].tool_call_id:
-                tools.append(messages[index])
-                index -= 1
-            else:
-                break
-
-        query = [SystemMessage(content=additional_info_prompt)] + tools
-        response = model.invoke(query)
-
-        return {"sub_messages": [AIMessage(content=str(response))], "additional_info": response}
-
-
-def should_continue(state):
-    messages = state["sub_messages"]
-    last_message = messages[-1]
-    if not last_message.tool_calls:
-        return "end"
-    else:
-        return "continue"
-
 
 collect_info = ToolNode(tools_for_info)
 
@@ -431,7 +397,18 @@ def generate(state: State, config: RunnableConfig) -> Command[Literal["call_devi
         # messages = messages + prompt_for_tool.invoke(
         #     {"question": [state["question"]], "device_configs": [docs_content],
         #      "additional_info": state["additional_info"]}).to_messages()
-        response = model.invoke(messages + [HumanMessage(content=query)])
+        prompt = HumanMessage(content=query)
+        # 用于判断是否使用了qwen
+        qwen_providers = (
+            configurable.planner_provider,
+            configurable.writer_provider,
+            configurable.structured_output_provider,
+            configurable.tool_call_provider,
+        )
+
+        if "qwen" in qwen_providers and not configurable.think_switch:
+            prompt = SystemMessage(content=f"{query}/no_think")
+        response = model.invoke(messages + [prompt])
         print(response)
         return Command(
             update={
@@ -460,7 +437,17 @@ def generate(state: State, config: RunnableConfig) -> Command[Literal["call_devi
              "device_call_result": state["device_call_results"]
              }
         )
-        response = model.invoke(messages + [SystemMessage(content=query)])
+        prompt=SystemMessage(content=query)
+        qwen_providers = (
+            configurable.planner_provider,
+            configurable.writer_provider,
+            configurable.structured_output_provider,
+            configurable.tool_call_provider,
+        )
+
+        if "qwen" in qwen_providers and not configurable.think_switch:
+            prompt = SystemMessage(content=f"{query}/no_think")
+        response = model.invoke(messages + [prompt])
         return Command(
             update={
                 "answer": response.content,
@@ -508,15 +495,6 @@ def device_call(
         state: State
 ):
     """
-    工具描述：根据用户的自然语言命令控制智能家居设备，并返回操作结果供生成反馈。
-    :param devices: 一个设备操作命令列表，每个命令必须包含以下字段：
-        - device_id (str): 设备的唯一产品ID，例如 'aX23Jrf5xy' 表示空调。
-        - device_name (str): 设备的具体名称，例如 '空调' 或 '卧室灯'。
-        - params (dict): 操作参数，键值对形式，必须提供，例如 {'power': 'true', 'temperature': '24'}。
-        - order (int): 调用顺序。
-    :param tool_call_id:
-    :param state:
-    :return:
     """
     # 处理设备调用并获取结果
     result = _process_device_call(state['device_calls'].device_calls)

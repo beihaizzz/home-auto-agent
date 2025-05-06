@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Literal, Optional
+from typing import List, Literal
 
 
 class AdditionalInfo(BaseModel):

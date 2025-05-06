@@ -11,6 +11,9 @@ from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langsmith import traceable
 from tavily import AsyncTavilyClient
+from langchain_qwq import ChatQwQ
+
+from common.configuration import BaseProvider
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -29,7 +32,7 @@ def rag_loader():
 
 
 @lru_cache(maxsize=4)
-def get_model(model_provider: str, model_name: str):
+def get_model(model_provider: BaseProvider, model_name: str):
     env = os.getenv("ENV", "dev")  # 默认测试环境
     load_dotenv(f"../../.env.dev.{env}", override=True)
     print(f"环境变量加载+++++++++++++++++++{os.getenv("DEEPSEEK_API_KEY")}")
@@ -38,10 +41,17 @@ def get_model(model_provider: str, model_name: str):
     elif model_provider == "anthropic":
         model = ChatAnthropic(model_name=model_name)
     elif model_provider == "openai":
-        model = ChatOpenAI(model_name=model_name,)
+        model = ChatOpenAI(model_name=model_name, )
     elif model_provider == "deepseek":
         # 注意这里的deepseek是硅基流动的
         model = init_chat_model(model_name)
+    elif model_provider == "qwen":
+        model = ChatQwQ(
+            model=model_name,
+            streaming=False,
+            api_key=os.getenv('DASHSCOPE_API_KEY'),
+            api_base=os.getenv('DASHSCOPE_BASE')
+        )
     else:
         raise ValueError(f"Unsupported model type: {model_provider}")
     return model
@@ -98,7 +108,7 @@ def deduplicate_and_format_sources(search_response, max_tokens_per_source, inclu
     Limits the raw_content to approximately max_tokens_per_source tokens.
 
     Args:
-        search_responses: List of search response dicts, each containing:
+        search_response: List of search response dicts, each containing:
             - query: str
             - results: List of dicts with fields:
                 - title: str
