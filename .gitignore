@@ -1,3 +1,50 @@
-.env.dev
-.ipynb_checkpoints
-.langgraph-data
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+
+# LangGraph
+.langgraph-data/
+.langgraph_api/
+
+# Vector store (large binary files, should be initialized locally)
+common/VectorStore/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+
+# Test files
+test.py
+test2.py
+
+# Misc
+*.log
+*.tmp
