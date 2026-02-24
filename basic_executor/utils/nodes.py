@@ -1,3 +1,4 @@
+import os
 from typing import List, Literal
 
 from jinja2 import Template
@@ -11,14 +12,10 @@ from langgraph.types import Command
 
 from HomeBuddyAgent.utils.prompts import node_generate_prompt_device_call, prompt_for_feedback
 from basic_executor.utils.state import State
-from langgraph.prebuilt import ToolNode
 
 from common.common_utils import get_model
 from common.structs import ConfigT, DeviceModelFactory, DeviceCall, DeviceResult, DeviceCalls
 from common.configuration import Configuration
-
-OPENAI_KEY = ("***REMOVED***"
-              "-***REMOVED***")
 
 
 @lru_cache(maxsize=4)
@@ -39,7 +36,7 @@ def _rag_loder():
     persist_directory = r"D:\DevelopFiles\pycharms\Command_parser_langgraph\my_agent\ChromaDB\test"
 
     embeddings = OpenAIEmbeddings(
-        api_key=OPENAI_KEY
+        api_key=os.environ.get("OPENAI_API_KEY")
     )
 
     vector_store = Chroma(
