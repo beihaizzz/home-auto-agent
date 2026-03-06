@@ -11,7 +11,6 @@ from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langsmith import traceable
 from tavily import AsyncTavilyClient
-from langchain_qwq import ChatQwQ
 
 from common.configuration import BaseProvider
 
@@ -46,11 +45,11 @@ def get_model(model_provider: BaseProvider, model_name: str):
         # 注意这里的deepseek是硅基流动的
         model = init_chat_model(model_name)
     elif model_provider == "qwen":
-        model = ChatQwQ(
+        model = ChatOpenAI(
             model=model_name,
             streaming=False,
             api_key=os.getenv('DASHSCOPE_API_KEY'),
-            api_base=os.getenv('DASHSCOPE_BASE')
+            base_url=os.getenv('DASHSCOPE_BASE')
         )
     else:
         raise ValueError(f"Unsupported model type: {model_provider}")
