@@ -1,5 +1,6 @@
 from typing import List, Literal
 import os
+import json as _json
 from jinja2 import Template
 from langchain_chroma import Chroma
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -94,15 +95,23 @@ def generate(state: State, config: RunnableConfig) -> Command[Literal["action", 
         DeviceCallsDynamic = DeviceCalls[ConfigUnion]
         DeviceCallsDynamic.__name__ = "DeviceCallsDynamic"
         print(f"{DeviceCallsDynamic.__name__}+++++++++++++++++++++++++++++++++++++++++++++++++")
-        model = model.with_structured_output(DeviceCallsDynamic)
+        model = model.bind(response_format={"type": "json_object"})
+
         template = Template(node_generate_prompt_device_call, autoescape=False)
         query = template.render(
             {"question": state["question"], "device_configs": [docs_content],
-             "additional_info": " "}
+             "additional_info": " ",
+             "json_schema": _json.dumps(DeviceCallsDynamic.model_json_schema(), ensure_ascii=False, indent=2)}
         )
         print(state["question"])
         print(query)
-        response = model.invoke(messages + [HumanMessage(content=query)])
+        raw_response = model.invoke(messages + [HumanMessage(content=query)])
+        # 手动解析 JSON，兼容各模型可能的嵌套输出
+        data = _json.loads(raw_response.content)
+        # 处理嵌套：模型可能返回 {"device_calls": {"device_calls": [...]}} 而非 {"device_calls": [...]}
+        if "device_calls" in data and isinstance(data["device_calls"], dict):
+            data = data["device_calls"]
+        response = DeviceCallsDynamic.model_validate(data)
         print(response)
         return Command(
             update={

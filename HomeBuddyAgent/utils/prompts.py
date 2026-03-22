@@ -209,72 +209,45 @@ Remember to use proper XML formatting for your entire output, enclosing it in <a
 Process the tool_messages and generate the structured output accordingly."""
 
 node_generate_prompt_device_call = """
-You are an AI assistant designed to control smart home devices. Your task is to interpret user requests, analyze device configurations, and create a structured DeviceCalls object to control these devices. Please follow these instructions carefully:
+You are an AI assistant designed to control smart home devices. Your task is to interpret user requests, analyze device configurations, and output a JSON object to control these devices.
 
-First, review the available device configurations:
+Available device configurations:
 
 <device_configs>
 {{device_configs}}
 </device_configs>
 
-Now, consider the user's request:
+User's request:
 
 <question>
 {{question}}
 </question>
 
-Additionally, take into account this supplementary information:
+Supplementary information:
 
 <additional_info>
 {{additional_info}}
 </additional_info>
 
-To process the user's request and control the devices, follow these steps:
+Instructions:
+1. Identify which device(s) need to be controlled based on the question and device_configs.
+2. Determine the appropriate parameters for each device. Use only the exact parameter names and value ranges specified in device_configs.
+3. If any information is ambiguous or missing, make a reasonable assumption based on common sense.
 
-1. Analyze the question to understand the user's intent.
-2. Identify which device(s) need to be controlled based on the question and device_configs.
-3. Review the additional_info for any relevant context or suggestions.
-4. Determine the appropriate parameters for each device based on the device_configs and the user's request.
-5. If any information is ambiguous or missing, make a reasonable assumption based on the additional_info or common sense.
-6. Prepare the DeviceCalls object, ensuring all required fields are filled correctly.
+You MUST output a single JSON object matching the following JSON Schema exactly:
 
-Important considerations:
-- Use only the exact parameter names and value ranges specified in device_configs.
-- Include all parameters for each device in the params field, even if you're not changing them all.
-- Be user-friendly and consider comfort and efficiency in your decisions.
-- If you can't fulfill the request with the given information, explain why in your response.
-
-Before providing your final output, break down the request, analyze the device configurations, and plan your device calls inside <device_control_analysis> tags. This analysis should include:
-- A list of each relevant device and its parameters
-- Consideration of potential conflicts or dependencies between devices
-- A step-by-step plan for creating the DeviceCalls object
-
-This will help ensure a thorough interpretation of the data and proper structuring of the DeviceCalls object.
-
-Your final output should be a structured DeviceCalls object as defined below:
-
-```python
-class DeviceCall(BaseModel, Generic[ConfigT]):
-    device_name: str
-    device_id: str
-    config: ConfigT = Field(
-        description="the params for device_call which comes from the device_configs",
-        json_schema_extra={"additionalProperties": False}  # 明确禁止额外属性
-    )
-    order: int = Field(
-        description="The order of the device call in the scene.",
-    )
-
-
-class DeviceCalls(BaseModel, Generic[ConfigT]):
-    device_calls: List[DeviceCall[ConfigT]] = Field(
-        description="List of device calls.",
-    )
+```json
+{{json_schema}}
 ```
 
-Ensure that your output strictly adheres to this structure and includes all necessary information for each device call.
+IMPORTANT:
+- Output ONLY the JSON object, no explanations, no markdown, no wrapping.
+- The top-level key must be "device_calls" with a JSON array as its value.
+- Each element in the array must have: device_name, device_id (from product_id.value), config (device params), order (starting from 1).
+- Do NOT nest the output in any additional wrapper object.
 
-Now, please process the input and provide your response according to these instructions.
+Example output format:
+{"device_calls": [{"device_name": "d1", "device_id": "mD97Vya1hi", "config": {"led": true}, "order": 1}]}
 """
 
 command_router_prompt = """
