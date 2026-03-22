@@ -57,14 +57,18 @@ class Configuration:
     """The configurable fields for the chatbot."""
     number_of_queries: int = 2  # 每次生成的查询数
     # planner其实还没有实装
-    planner_provider: PlannerProvider = PlannerProvider.ANTHROPIC
-    planner_model: str = "claude-3-7-sonnet-latest"
-    writer_provider: WriterProvider = WriterProvider.OPENAI
-    writer_model: str = "gpt-4o-mini"
-    structured_output_provider: StructuredOutputProvider = StructuredOutputProvider.OPENAI
-    structured_output_model: str = "gpt-4o-mini"
-    tool_call_provider: ToolCallProvider = ToolCallProvider.OPENAI
-    tool_call_model: str = "gpt-4o-mini"
+    planner_provider: PlannerProvider = PlannerProvider.QWEN
+    planner_model: str = "qwen3.5-plus"
+    
+    writer_provider: WriterProvider = WriterProvider.QWEN
+    writer_model: str = "qwen3.5-plus"
+
+    structured_output_provider: StructuredOutputProvider = StructuredOutputProvider.QWEN
+    structured_output_model: str = "qwen3.5-plus"
+    
+    tool_call_provider: ToolCallProvider = ToolCallProvider.QWEN
+    tool_call_model: str = "qwen3.5-plus"
+
     search_api: SearchAPI = SearchAPI.TAVILY
     search_api_config: Optional[Dict[str, Any]] = None
     think_switch: bool = False  # 专门为Qwen3设计的开关

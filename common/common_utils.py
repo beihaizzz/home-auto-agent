@@ -9,9 +9,9 @@ from langchain_anthropic import ChatAnthropic
 from langchain_chroma import Chroma
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+
 from langsmith import traceable
 from tavily import AsyncTavilyClient
-
 from common.configuration import BaseProvider
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,7 +34,7 @@ def rag_loader():
 def get_model(model_provider: BaseProvider, model_name: str):
     env = os.getenv("ENV", "dev")  # 默认测试环境
     load_dotenv(f"../../.env.dev.{env}", override=True)
-    print(f"环境变量加载+++++++++++++++++++{os.getenv("DEEPSEEK_API_KEY")}")
+    print(f"环境变量加载+++++++++++++++++++")
     if model_provider == "groq":
         model = ChatGroq(model_name=model_name)
     elif model_provider == "anthropic":
@@ -49,8 +49,9 @@ def get_model(model_provider: BaseProvider, model_name: str):
             model=model_name,
             streaming=False,
             api_key=os.getenv('DASHSCOPE_API_KEY'),
-            base_url=os.getenv('DASHSCOPE_BASE')
+            base_url=os.getenv('DASHSCOPE_API_BASE')
         )
+
     else:
         raise ValueError(f"Unsupported model type: {model_provider}")
     return model
