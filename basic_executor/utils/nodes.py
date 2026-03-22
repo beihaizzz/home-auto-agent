@@ -5,7 +5,8 @@ from jinja2 import Template
 from langchain_chroma import Chroma
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import OpenAIEmbeddings
+#from langchain_openai import OpenAIEmbeddings
+from langchain_community.embeddings import DashScopeEmbeddings
 from functools import lru_cache
 
 from langgraph.types import Command
@@ -18,8 +19,8 @@ from common.common_utils import get_model
 from common.structs import ConfigT, DeviceModelFactory, DeviceCall, DeviceResult, DeviceCalls
 from common.configuration import Configuration
 
-OPENAI_KEY = os.getenv("OPENAI_EMBEDDING_API_KEY")
-
+#OPENAI_KEY = os.getenv("OPENAI_EMBEDDING_API_KEY")
+DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
 
 @lru_cache(maxsize=4)
 def _rag_loder():
@@ -36,10 +37,14 @@ def _rag_loder():
     #
     # texts = text_splitter.create_documents([file])
     # vector_store = Chroma.from_documents(texts, OpenAIEmbeddings())
-    persist_directory = r"D:\DevelopFiles\pycharms\Command_parser_langgraph\my_agent\ChromaDB\test"
+    persist_directory = r"./ChromaDB/test"
 
-    embeddings = OpenAIEmbeddings(
-        api_key=OPENAI_KEY
+    #embeddings = OpenAIEmbeddings(
+    #    api_key=OPENAI_KEY
+    #)
+    embeddings = DashScopeEmbeddings(
+        model="text-embedding-v3",
+        dashscope_api_key=DASHSCOPE_API_KEY
     )
 
     vector_store = Chroma(

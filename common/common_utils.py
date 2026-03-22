@@ -9,6 +9,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_chroma import Chroma
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_community.embeddings import DashScopeEmbeddings
 
 from langsmith import traceable
 from tavily import AsyncTavilyClient
@@ -20,7 +21,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 @lru_cache(maxsize=1)
 def rag_loader():
     persist_directory = os.getenv("VECTOR_STORE_PATH")
-    embeddings = OpenAIEmbeddings(
+    #embeddings = OpenAIEmbeddings()
+    embeddings = DashScopeEmbeddings(
+        model="text-embedding-v3",  # 最新最强嵌入模型
     )
     vector_store = Chroma(
         collection_name="vector_collection_for_agent",
