@@ -50,7 +50,12 @@ async def retriever_tool(query_list: List[str], tool_call_id: Annotated[str, Inj
         search_results = [Document(page_content=content) for content in json.loads(cached_result)]
     else:
         # 如果缓存不存在，执行搜索
-        vectorstore = await to_thread(rag_loader)
+        # 从state中获取当前的工具调用提供商
+        model_provider = state.get('config', {}).get('tool_call_provider', 'qwen')
+        # 提取枚举值的字符串表示
+        if hasattr(model_provider, 'value'):
+            model_provider = model_provider.value
+        vectorstore = await to_thread(rag_loader, model_provider)
 
         # vectorstore = state['vector_store']
         search_results: List[Document] = []

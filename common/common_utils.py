@@ -18,13 +18,37 @@ from common.configuration import BaseProvider
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-@lru_cache(maxsize=1)
-def rag_loader():
+@lru_cache(maxsize=4)
+def get_embedding_model(model_provider: str):
+    """根据模型提供商获取对应的embedding模型"""
+    if model_provider == "openai":
+        return OpenAIEmbeddings()
+    elif model_provider == "qwen":
+        return DashScopeEmbeddings(
+            model="text-embedding-v3",  # 最新最强嵌入模型
+        )
+    elif model_provider == "anthropic":
+        # Anthropic没有官方的embedding模型，使用OpenAI作为替代
+        return OpenAIEmbeddings()
+    elif model_provider == "deepseek":
+        # DeepSeek的embedding模型
+        return OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            api_key=os.getenv('DEEPSEEK_API_KEY'),
+            base_url=os.getenv('DEEPSEEK_API_BASE')
+        )
+    elif model_provider == "groq":
+        # Groq没有官方的embedding模型，使用OpenAI作为替代
+        return OpenAIEmbeddings()
+    else:
+        # 默认使用OpenAI的embedding模型
+        return OpenAIEmbeddings()
+
+
+@lru_cache(maxsize=4)
+def rag_loader(model_provider: str = "qwen"):
     persist_directory = os.getenv("VECTOR_STORE_PATH")
-    #embeddings = OpenAIEmbeddings()
-    embeddings = DashScopeEmbeddings(
-        model="text-embedding-v3",  # 最新最强嵌入模型
-    )
+    embeddings = get_embedding_model(model_provider)
     vector_store = Chroma(
         collection_name="vector_collection_for_agent",
         embedding_function=embeddings,
