@@ -4,7 +4,11 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_core.documents import Document
 import json, os
+from dotenv import load_dotenv
 import argparse
+
+# 加载.env.dev文件
+load_dotenv('.env.dev', override=True)
 
 # 解析命令行参数
 parser = argparse.ArgumentParser(description="初始化向量数据库")
@@ -17,7 +21,7 @@ if args.provider == "openai":
     embeddings = OpenAIEmbeddings()
 elif args.provider == "qwen":
     embeddings = DashScopeEmbeddings(
-        dashscope_api_key=os.getenv('DASHSCOPE_API_KEY', "sk-08cbaae3f5b5482cac1ff6b09c7b17d9"),
+        dashscope_api_key=os.getenv("DASHSCOPE_API_KEY"),
         model="text-embedding-v3"  # 千问官方向量模型
     )
 elif args.provider == "anthropic":
