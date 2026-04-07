@@ -5,7 +5,6 @@ from jinja2 import Template
 from langchain_chroma import Chroma
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import OpenAIEmbeddings
 from functools import lru_cache
 
 from langgraph.types import Command
@@ -14,16 +13,13 @@ from HomeBuddyAgent.utils.prompts import node_generate_prompt_device_call, promp
 from basic_executor.utils.state import State
 from langgraph.prebuilt import ToolNode
 
-from common.common_utils import get_model
+from common.common_utils import get_model, get_embedding_model
 from common.structs import ConfigT, DeviceModelFactory, DeviceCall, DeviceResult, DeviceCalls
 from common.configuration import Configuration
 
-OPENAI_KEY = os.getenv("OPENAI_EMBEDDING_API_KEY")
-
-
 @lru_cache(maxsize=4)
-def _rag_loder():
-    # with open("D:\\DevelopFiles\\pycharms\\Stimulate\\AI\\files\\function_file.json", encoding="UTF-8") as f:
+def _rag_loder(model_provider: str = "qwen"):
+    # with open("D:\DevelopFiles\pycharms\Stimulate\AI\files\function_file.json", encoding="UTF-8") as f:
     #     file = f.read()
     #
     # text_splitter = CharacterTextSplitter(
@@ -36,11 +32,9 @@ def _rag_loder():
     #
     # texts = text_splitter.create_documents([file])
     # vector_store = Chroma.from_documents(texts, OpenAIEmbeddings())
-    persist_directory = r"D:\DevelopFiles\pycharms\Command_parser_langgraph\my_agent\ChromaDB\test"
+    persist_directory = r"./ChromaDB/test"
 
-    embeddings = OpenAIEmbeddings(
-        api_key=OPENAI_KEY
-    )
+    embeddings = get_embedding_model(model_provider)
 
     vector_store = Chroma(
         collection_name="vector_collection_for_agent",
@@ -61,7 +55,12 @@ def should_continue(state):
 
 def retrieve(state: State):
     # print("retrieve")
-    vector_store = _rag_loder()
+    # 从state中获取当前的模型提供商
+    model_provider = state.get('config', {}).get('structured_output_provider', 'qwen')
+    # 提取枚举值的字符串表示
+    if hasattr(model_provider, 'value'):
+        model_provider = model_provider.value
+    vector_store = _rag_loder(model_provider)
     retrieved_docs = vector_store.similarity_search(state["question"], k=4)
     return {"context": retrieved_docs, "tool_using": False}
 

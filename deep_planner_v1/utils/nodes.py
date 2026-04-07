@@ -76,13 +76,20 @@ def _add_config_for_scenes(device_configs: List[dict], scenes: Scenes) -> Scenes
     return scenes
 
 
-def init_state(state: SceneState):
+def init_state(state: SceneState, config: RunnableConfig):
     """
     初始化（主要是今天的日期）
     :param state:
+    :param config:
     :return:
     """
-    vector_store = rag_loader()
+    configurable = Configuration.from_runnable_config(config)
+    # 获取当前的模型提供商
+    model_provider = configurable.planner_provider
+    # 提取枚举值的字符串表示
+    if hasattr(model_provider, 'value'):
+        model_provider = model_provider.value
+    vector_store = rag_loader(model_provider)
 
     docs: List[Document] = []
     for s in vector_store.get()['documents']:
