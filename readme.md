@@ -57,7 +57,7 @@ home-auto-agent/
 
 - **Python** 3.11+
 - **Redis**（用于设备检索缓存，需本地或远程部署）
-- **API Keys**：至少需要 OpenAI 和 Tavily 的 API Key
+- **API Keys**：至少需要 Tavily 的 API Key，以及至少一个 LLM 提供商的 API Key（如 OpenAI、Anthropic、Groq、DeepSeek 或通义千问）
 
 ## 快速启动
 
@@ -103,7 +103,7 @@ cp .env.example .env.dev
 编辑 `.env.dev`：
 
 ```dotenv
-# 必填 - OpenAI 用于设备控制的 tool call 和结构化输出
+# 可选 - OpenAI 用于设备控制的 tool call 和结构化输出
 OPENAI_API_KEY=sk-xxx
 
 # 必填 - Tavily 用于联网搜索
@@ -117,7 +117,7 @@ GROQ_API_KEY=gsk_xxx
 DEEPSEEK_API_KEY=xxx
 DEEPSEEK_API_BASE=https://api.siliconflow.cn/v1
 
-# 可选 - 通义千问
+# 可选 - 通义千问（可替代 OpenAI）
 DASHSCOPE_API_KEY=xxx
 DASHSCOPE_BASE=xxx
 
@@ -128,11 +128,13 @@ REDIS_PASSWORD=xxx
 VECTOR_STORE_PATH=common/VectorStore
 ```
 
-> **注意**：最低配置只需 `OPENAI_API_KEY` 和 `TAVILY_API_KEY` 即可运行基本功能。
+> **注意**：最低配置只需 `TAVILY_API_KEY` 和至少一个 LLM 提供商的 API Key（如 OpenAI、Anthropic、Groq、DeepSeek 或通义千问）即可运行基本功能。
 
 ### 5. 初始化向量数据库
 
-首次运行需要将设备配置导入向量数据库。在项目根目录下运行：
+首次运行需要将设备配置导入向量数据库。以下是使用不同嵌入模型的示例：
+
+**使用 OpenAI 嵌入模型：**
 
 ```python
 # init_vector_store.py 或在 Python/Jupyter 中执行
@@ -143,6 +145,39 @@ import json, os
 
 # 初始化 Embeddings（需要 OPENAI_API_KEY）
 embeddings = OpenAIEmbeddings()
+
+# 创建向量数据库
+vector_store = Chroma(
+    collection_name="vector_collection_for_agent",
+    embedding_function=embeddings,
+    persist_directory=os.path.join(os.getcwd(), "common", "VectorStore"),
+    collection_metadata={"vs_name": "test"}
+)
+
+# 加载设备配置
+with open("oneNetConfig.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+documents = [
+    Document(page_content=json.dumps(device, indent=2, ensure_ascii=False))
+    for device in data
+]
+
+ids = vector_store.add_documents(documents)
+print(f"成功导入 {len(ids)} 个设备配置")
+```
+
+**使用 HuggingFace 开源嵌入模型（无需 API Key）：**
+
+```python
+# init_vector_store.py 或在 Python/Jupyter 中执行
+from langchain_chroma import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_core.documents import Document
+import json, os
+
+# 初始化 Embeddings（无需 API Key）
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # 创建向量数据库
 vector_store = Chroma(
@@ -221,16 +256,31 @@ langgraph dev
 
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `tool_call_provider` | OpenAI | 设备检索的 tool call |
+| `tool_call_provider` | OpenAI | 设备检索的 tool call，可替换为 qwen、anthropic、groq 或 deepseek |
 | `tool_call_model` | gpt-4o-mini | tool call 使用的模型 |
-| `structured_output_provider` | OpenAI | 结构化输出（设备指令生成） |
+| `structured_output_provider` | OpenAI | 结构化输出（设备指令生成），可替换为 qwen、anthropic、groq 或 deepseek |
 | `structured_output_model` | gpt-4o-mini | 结构化输出模型 |
-| `planner_provider` | Anthropic | 场景规划 |
+| `planner_provider` | Anthropic | 场景规划，可替换为 openai、qwen、groq 或 deepseek |
 | `planner_model` | claude-3-7-sonnet-latest | 规划模型 |
 | `search_api` | Tavily | 联网搜索 API |
 | `number_of_queries` | 2 | 每次联网搜索生成的查询数 |
 
 也可以通过 LangGraph Studio 的 UI 在运行时动态调整这些配置。
+
+**示例配置**：使用通义千问替代 OpenAI
+
+```python
+# 在 common/configuration.py 中修改默认值
+class Configuration:
+    # ...
+    writer_provider: WriterProvider = WriterProvider.QWEN
+    writer_model: str = "qwen3-72b-instruct"
+    structured_output_provider: StructuredOutputProvider = StructuredOutputProvider.QWEN
+    structured_output_model: str = "qwen3-72b-instruct"
+    tool_call_provider: ToolCallProvider = ToolCallProvider.QWEN
+    tool_call_model: str = "qwen3-72b-instruct"
+    # ...
+```
 
 ### 设备配置
 
@@ -264,7 +314,9 @@ langgraph dev
 
 ### Q: 向量数据库初始化报错？
 
-确认 `OPENAI_API_KEY` 已正确配置且网络可以访问 OpenAI API（可能需要代理）。
+如果使用 OpenAI 嵌入模型，请确认 `OPENAI_API_KEY` 已正确配置且网络可以访问 OpenAI API（可能需要代理）。
+
+如果不想使用 OpenAI，可以使用 HuggingFace 开源嵌入模型，无需 API Key。
 
 ### Q: 如何添加新的智能设备？
 
