@@ -1,0 +1,343 @@
+{
+  "device_type_mappings": {
+    "LED Light": {
+      "mcp_type": "light",
+      "aliases": [
+        "LED Light",
+        "d1"
+      ],
+      "params": {
+        "led": {
+          "type": "boolean",
+          "description": "LED开关状态",
+          "value_range": "true/false"
+        }
+      }
+    },
+    "Air Conditioner": {
+      "mcp_type": "air_conditioner",
+      "aliases": [
+        "Air Conditioner",
+        "空调"
+      ],
+      "params": {
+        "power": {
+          "type": "boolean",
+          "description": "开关状态",
+          "value_range": "true/false"
+        },
+        "temperature": {
+          "type": "integer",
+          "description": "设定温度",
+          "value_range": "16-30"
+        },
+        "fan_speed": {
+          "type": "integer",
+          "description": "风速级别",
+          "value_range": "1-5"
+        },
+        "mode": {
+          "type": "string",
+          "description": "空调模式",
+          "value_range": "冷/热/除湿/自动"
+        }
+      }
+    },
+    "Electric Fan": {
+      "mcp_type": "fan",
+      "aliases": [
+        "Electric Fan",
+        "风扇"
+      ],
+      "params": {
+        "power": {
+          "type": "boolean",
+          "description": "开关状态",
+          "value_range": "true/false"
+        },
+        "fan_speed": {
+          "type": "integer",
+          "description": "风速级别",
+          "value_range": "1-5"
+        },
+        "oscillation": {
+          "type": "boolean",
+          "description": "是否开启摇头",
+          "value_range": "true/false"
+        }
+      }
+    },
+    "Humidifier": {
+      "mcp_type": "humidifier",
+      "aliases": [
+        "Humidifier",
+        "加湿器"
+      ],
+      "params": {
+        "power": {
+          "type": "boolean",
+          "description": "开关状态",
+          "value_range": "true/false"
+        },
+        "humidity_level": {
+          "type": "integer",
+          "description": "设定湿度",
+          "value_range": "30-80"
+        },
+        "mist_output": {
+          "type": "integer",
+          "description": "雾量大小",
+          "value_range": "1-3"
+        }
+      }
+    },
+    "Speaker": {
+      "mcp_type": "speaker",
+      "aliases": [
+        "Speaker",
+        "音箱"
+      ],
+      "params": {
+        "power": {
+          "type": "boolean",
+          "description": "开关状态",
+          "value_range": "true/false"
+        },
+        "volume": {
+          "type": "integer",
+          "description": "音量级别",
+          "value_range": "0-100"
+        },
+        "sound_mode": {
+          "type": "string",
+          "description": "音效模式",
+          "value_range": "音乐/电影/游戏/新闻"
+        }
+      }
+    },
+    "Smart Battery": {
+      "mcp_type": "switch",
+      "aliases": [
+        "Smart Battery",
+        "电池"
+      ],
+      "params": {
+        "battery_display": {
+          "type": "boolean",
+          "description": "是否显示电量",
+          "value_range": "true/false"
+        },
+        "charging": {
+          "type": "boolean",
+          "description": "是否正在充电",
+          "value_range": "true/false"
+        },
+        "power_saving": {
+          "type": "boolean",
+          "description": "是否开启省电模式",
+          "value_range": "true/false"
+        }
+      }
+    },
+    "Smart TV": {
+      "mcp_type": "tv",
+      "aliases": [
+        "Smart TV",
+        "电视"
+      ],
+      "params": {
+        "power": {
+          "type": "boolean",
+          "description": "开关状态",
+          "value_range": "true/false"
+        },
+        "volume": {
+          "type": "integer",
+          "description": "音量级别",
+          "value_range": "0-100"
+        },
+        "channel": {
+          "type": "integer",
+          "description": "电视频道号",
+          "value_range": "1-999"
+        },
+        "picture_mode": {
+          "type": "string",
+          "description": "画质模式",
+          "value_range": "标准/动态/电影/自定义"
+        }
+      }
+    },
+    "Smart Curtain": {
+      "mcp_type": "curtain",
+      "aliases": [
+        "Smart Curtain",
+        "窗帘"
+      ],
+      "params": {
+        "open_close": {
+          "type": "boolean",
+          "description": "窗帘开合状态",
+          "value_range": "true/false"
+        },
+        "position": {
+          "type": "integer",
+          "description": "窗帘位置百分比",
+          "value_range": "0-100"
+        },
+        "auto_mode": {
+          "type": "boolean",
+          "description": "是否开启自动模式",
+          "value_range": "true/false"
+        }
+      }
+    },
+    "Smart Lock": {
+      "mcp_type": "lock",
+      "aliases": [
+        "Smart Lock",
+        "门锁"
+      ],
+      "params": {
+        "lock": {
+          "type": "boolean",
+          "description": "是否上锁",
+          "value_range": "true/false"
+        },
+        "fingerprint_unlock": {
+          "type": "boolean",
+          "description": "是否启用指纹开锁",
+          "value_range": "true/false"
+        },
+        "alarm": {
+          "type": "boolean",
+          "description": "是否启用防盗警报",
+          "value_range": "true/false"
+        }
+      }
+    }
+  },
+  "action_mappings": {
+    "turn_on": [
+      "打开",
+      "开启",
+      "启动",
+      "开",
+      "turn_on",
+      "on"
+    ],
+    "turn_off": [
+      "关闭",
+      "关掉",
+      "停止",
+      "关",
+      "turn_off",
+      "off"
+    ],
+    "set_value": [
+      "设置",
+      "设定",
+      "调节",
+      "调整",
+      "set_value"
+    ],
+    "get_status": [
+      "状态",
+      "查询",
+      "查看",
+      "get_status"
+    ],
+    "toggle": [
+      "切换",
+      "toggle"
+    ],
+    "led": [
+      "led",
+      "LED开关状态"
+    ],
+    "power": [
+      "power",
+      "开关状态"
+    ],
+    "temperature": [
+      "temperature",
+      "设定温度"
+    ],
+    "fan_speed": [
+      "fan_speed",
+      "风速级别"
+    ],
+    "mode": [
+      "mode",
+      "空调模式"
+    ],
+    "oscillation": [
+      "oscillation",
+      "是否开启摇头"
+    ],
+    "humidity_level": [
+      "humidity_level",
+      "设定湿度"
+    ],
+    "mist_output": [
+      "mist_output",
+      "雾量大小"
+    ],
+    "volume": [
+      "volume",
+      "音量级别"
+    ],
+    "sound_mode": [
+      "sound_mode",
+      "音效模式"
+    ],
+    "battery_display": [
+      "battery_display",
+      "是否显示电量"
+    ],
+    "charging": [
+      "charging",
+      "是否正在充电"
+    ],
+    "power_saving": [
+      "power_saving",
+      "是否开启省电模式"
+    ],
+    "channel": [
+      "channel",
+      "电视频道号"
+    ],
+    "picture_mode": [
+      "picture_mode",
+      "画质模式"
+    ],
+    "open_close": [
+      "open_close",
+      "窗帘开合状态"
+    ],
+    "position": [
+      "position",
+      "窗帘位置百分比"
+    ],
+    "auto_mode": [
+      "auto_mode",
+      "是否开启自动模式"
+    ],
+    "lock": [
+      "lock",
+      "是否上锁"
+    ],
+    "fingerprint_unlock": [
+      "fingerprint_unlock",
+      "是否启用指纹开锁"
+    ],
+    "alarm": [
+      "alarm",
+      "是否启用防盗警报"
+    ]
+  },
+  "last_updated": "2026-05-23T21:49:01.279176",
+  "source_file": "oneNetConfig.json",
+  "total_devices": 9,
+  "total_device_types": 9
+}

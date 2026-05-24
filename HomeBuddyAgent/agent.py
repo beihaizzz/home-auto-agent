@@ -1,4 +1,5 @@
-from HomeBuddyAgent.utils.nodes import generate, agent, filter, device_call, command_router, generate_queries, search_web
+from HomeBuddyAgent.utils.nodes import generate, agent, filter, command_router, generate_queries, search_web
+from HomeBuddyAgent.utils.mcp_integration import mcp_device_call
 from HomeBuddyAgent.utils.state import State, StateInput, StateOutput, InfoStateOutPut, InfoState
 from HomeBuddyAgent.utils.tools import retriever_tool
 from common.configuration import Configuration
@@ -29,7 +30,10 @@ workflow.add_node("agent", agent)  # agent
 
 retriever = ToolNode([retriever_tool])
 
-workflow.add_node("call_devices", device_call)
+# 添加设备调用节点 - 使用MCP协议调用外部设备控制服务
+# 使用标准的call_tool方法与对方MCP Server通信
+workflow.add_node("call_devices", mcp_device_call)
+
 # 变为固定的节点
 workflow.add_node("retriever", retriever)  # retrieval
 workflow.add_node("additional_info_collect", info_graph)
@@ -57,8 +61,15 @@ workflow.add_conditional_edges(
 )
 workflow.add_edge("retriever", "command_router")
 workflow.add_edge("additional_info_collect", "generate")
-workflow.add_edge("executor", END)
+
+# MCP协议工作流：executor生成设备控制指令后，调用外部MCP Server
+workflow.add_edge("executor", "call_devices")
+
+# 设备调用完成后生成最终回复
 workflow.add_edge("call_devices", "generate")
+
+# 生成完成后结束
+workflow.add_edge("generate", END)
 
 # Compile
 graph = workflow.compile()
