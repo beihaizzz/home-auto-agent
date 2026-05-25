@@ -1,4 +1,4 @@
-# Home Auto Agent - 快速上手指南
+# Home Auto Agent - 智能家居控制系统
 
 ## 项目简介
 
@@ -6,9 +6,9 @@ Home Auto Agent 是一个基于 **LangGraph** 的智能家居控制系统，支�
 
 - 自然语言理解与设备控制（开灯、调空调温度等）
 - 基于向量数据库的语义化设备检索
-- 联网搜索补充上下文信息
 - 智能场景规划（起床模式、离家模式等）
 - 多 LLM 供应商支持（OpenAI / Anthropic / Groq / DeepSeek / 通义千问）
+- **MCP协议支持**：通过标准 Model Context Protocol 与外部设备控制Server对接
 
 ## 项目结构
 
@@ -21,7 +21,8 @@ home-auto-agent/
 │       ├── tools.py         # 设备检索工具（向量搜索 + Redis 缓存）
 │       ├── state.py         # 状态定义
 │       ├── prompts.py       # Prompt 模板
-│       └── structs.py       # 数据模型（路由评分、清晰度评分等）
+│       ├── structs.py       # 数据模型（路由评分、清晰度评分等）
+│       └── mcp_integration.py # MCP协议集成模块
 │
 ├── basic_executor/          # 设备执行模块
 │   ├── agent.py             # 执行器工作流
@@ -44,20 +45,28 @@ home-auto-agent/
 │   ├── configuration.py     # 全局配置（LLM 供应商、模型选择等）
 │   ├── structs.py           # 核心数据结构（Device、DeviceCall、DeviceResult）
 │   ├── common_utils.py      # 工具函数（get_model、rag_loader、tavily_search）
-│   └── VectorStore/         # Chroma 向量数据库（本地持久化存储）
+│   ├── VectorStore/         # Chroma 向量数据库（本地持久化存储）
+│   └── mcp/                 # MCP协议相关
+│       ├── protocol.py      # MCP协议数据结构定义
+│       ├── client.py        # MCP客户端实现
+│       └── device_mappings.json # 设备类型映射配置
 │
-├── oneNetConfig.json        # 设备配置文件（模拟的 OneNET 设备列表）
+├── test/                    # 测试模块
+│   ├── mcp_mock_server.py   # MCP模拟服务器（用于测试）
+│   └── test_mcp_client.py   # MCP客户端测试
+│
+├── oneNetConfig.json        # 设备配置文件（模拟的设备列表）
+├── init_vector_store.py     # 向量数据库初始化脚本
 ├── langgraph.json           # LangGraph 入口配置
 ├── requirements.txt         # Python 依赖
-├── .env.example             # 环境变量模板
-└── readme.md                # 基础说明
+└── .env.example             # 环境变量模板
 ```
 
 ## 环境要求
 
 - **Python** 3.11+
-- **Redis**（用于设备检索缓存，需本地或远程部署）
-- **API Keys**：至少需要 Tavily 的 API Key，以及至少一个 LLM 提供商的 API Key（如 OpenAI、Anthropic、Groq、DeepSeek 或通义千问）
+- **Redis**（用于设备检索缓存）
+- **API Keys**：至少需要一个 LLM 提供商的 API Key（如 OpenAI、Anthropic、Groq、DeepSeek 或通义千问）
 
 ## 快速启动
 
@@ -84,11 +93,6 @@ source venv/bin/activate
 
 ```bash
 pip install -r requirements.txt
-```
-
-安装 LangGraph CLI（仅本地开发需要）：
-
-```bash
 pip install -U "langgraph-cli[inmem]"
 ```
 
@@ -119,12 +123,15 @@ DEEPSEEK_API_BASE=https://api.siliconflow.cn/v1
 
 # 可选 - 通义千问（可替代 OpenAI）
 DASHSCOPE_API_KEY=xxx
-DASHSCOPE_BASE=xxx
+
+# MCP Server 配置（对接外部设备控制Server）
+MCP_SERVER_URL=http://localhost:8080
+MCP_API_KEY=xxx
 
 # Redis 密码（如果 Redis 设置了密码）
 REDIS_PASSWORD=xxx
 
-# 向量数据库存储路径（一般不需要修改）
+# 向量数据库存储路径
 VECTOR_STORE_PATH=common/VectorStore
 ```
 
@@ -229,7 +236,7 @@ langgraph dev
     │         ┌──────────┴──────────┐
     │         ▼                     ▼
     │    指令清晰              指令模糊
-    │    executor             info_graph（联网搜索补充）
+    │    executor             info_graph（补充信息）
     │    （执行设备控制）           │
     │         │                    ▼
     │         ▼               generate（生成回复）
@@ -240,49 +247,100 @@ langgraph dev
     └── 不需要检索 ──► 直接结束
 ```
 
-### 三个 Agent 模块
+### MCP协议集成
 
-| 模块 | 功能 | 对应 Graph |
-|------|------|-----------|
-| **HomeBuddyAgent** | 主控 Agent，负责意图理解和路由 | `HomeBuddyAgent/agent.py:graph` |
-| **basic_executor** | 设备执行器，将指令转化为设备调用 | 作为子图被 HomeBuddyAgent 调用 |
-| **deep_planner_v1** | 场景规划器，生成一日生活方案 | `deep_planner_v1/agent.py:graph` |
+本项目作为 **MCP Client**，通过标准 MCP 协议与外部设备控制 Server 通信：
 
-## 配置说明
-
-### LLM 供应商切换
-
-在 `common/configuration.py` 中可配置各功能使用的 LLM：
-
-| 配置项 | 默认值 | 说明 |
-|--------|--------|------|
-| `tool_call_provider` | OpenAI | 设备检索的 tool call，可替换为 qwen、anthropic、groq 或 deepseek |
-| `tool_call_model` | gpt-4o-mini | tool call 使用的模型 |
-| `structured_output_provider` | OpenAI | 结构化输出（设备指令生成），可替换为 qwen、anthropic、groq 或 deepseek |
-| `structured_output_model` | gpt-4o-mini | 结构化输出模型 |
-| `planner_provider` | Anthropic | 场景规划，可替换为 openai、qwen、groq 或 deepseek |
-| `planner_model` | claude-3-7-sonnet-latest | 规划模型 |
-| `search_api` | Tavily | 联网搜索 API |
-| `number_of_queries` | 2 | 每次联网搜索生成的查询数 |
-
-也可以通过 LangGraph Studio 的 UI 在运行时动态调整这些配置。
-
-**示例配置**：使用通义千问替代 OpenAI
-
-```python
-# 在 common/configuration.py 中修改默认值
-class Configuration:
-    # ...
-    writer_provider: WriterProvider = WriterProvider.QWEN
-    writer_model: str = "qwen3-72b-instruct"
-    structured_output_provider: StructuredOutputProvider = StructuredOutputProvider.QWEN
-    structured_output_model: str = "qwen3-72b-instruct"
-    tool_call_provider: ToolCallProvider = ToolCallProvider.QWEN
-    tool_call_model: str = "qwen3-72b-instruct"
-    # ...
+```
+Home Auto Agent (MCP Client)
+        │
+        ▼ HTTP POST /mcp/v1/control
+        │
+    External MCP Server
+        │
+        ▼
+    设备控制执行
 ```
 
-### 设备配置
+## MCP协议接口
+
+### 设备控制接口
+
+**Endpoint**: `POST /mcp/v1/control`
+
+**请求格式**:
+
+```json
+{
+  "version": "1.0",
+  "payload_type": "request",
+  "request_id": "uuid-string",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "source": "home-auto-agent",
+  "controls": [
+    {
+      "device_id": "device-uuid",
+      "device_name": "空调",
+      "device_type": "air_conditioner",
+      "action": "set_value",
+      "parameters": { "temperature": 24 }
+    }
+  ],
+  "timeout": 30,
+  "execute_strategy": "sequential"
+}
+```
+
+**响应格式**:
+
+```json
+{
+  "version": "1.0",
+  "payload_type": "response",
+  "request_id": "uuid-string",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "overall_status": "success",
+  "results": [
+    {
+      "device_id": "device-uuid",
+      "device_name": "空调",
+      "status": "success",
+      "message": "设备控制成功",
+      "action": "set_value",
+      "device_status": { "power": "on", "temperature": 24 }
+    }
+  ]
+}
+```
+
+### 支持的设备类型
+
+| 类型              | 说明   |
+| ----------------- | ------ |
+| `air_conditioner` | 空调   |
+| `light`           | 灯光   |
+| `curtain`         | 窗帘   |
+| `heater`          | 加热器 |
+| `fan`             | 风扇   |
+| `tv`              | 电视   |
+| `speaker`         | 音箱   |
+| `switch`          | 开关   |
+| `sensor`          | 传感器 |
+| `scene`           | 场景   |
+| `humidifier`      | 加湿器 |
+
+### 支持的动作类型
+
+| 动作             | 说明         |
+| ---------------- | ------------ |
+| `turn_on`        | 打开设备     |
+| `turn_off`       | 关闭设备     |
+| `set_value`      | 设置参数值   |
+| `get_status`     | 获取设备状态 |
+| `toggle`         | 切换设备状态 |
+| `scene_activate` | 激活场景     |
+
+## 设备配置
 
 设备信息在 `oneNetConfig.json` 中定义。每个设备包含：
 
@@ -290,7 +348,7 @@ class Configuration:
 {
   "product_id": { "type": "string", "value": "设备产品ID" },
   "device_name": { "type": "string", "value": "设备名称" },
-  "device_type": "设备类型（如 Air Conditioner）",
+  "device_type": "设备类型",
   "params": {
     "type": "object",
     "properties": {
@@ -304,41 +362,36 @@ class Configuration:
 }
 ```
 
-新增设备时，编辑此文件并重新运行**步骤 5**初始化向量数据库。
+新增设备时，编辑此文件并重新运行初始化脚本。
+
+## 测试
+
+### 启动 MCP Mock Server
+
+```bash
+python test/mcp_mock_server.py
+```
+
+Mock Server 运行在 `http://localhost:8080`，支持所有设备类型和动作。
 
 ## 常见问题
 
-### Q: Redis 连接失败怎么办？
+### Q: 如何添加新设备？
 
-确保本地 Redis 服务已启动。Windows 用户可以使用 [Memurai](https://www.memurai.com/) 或 WSL 中安装 Redis。如果 Redis 设置了密码，确保 `.env.dev` 中的 `REDIS_PASSWORD` 正确配置。
+1. 在 `oneNetConfig.json` 中添加设备配置
+2. 运行 `python init_vector_store.py` 重新初始化向量数据库
+3. 如果需要测试，在 `test/mcp_mock_server.py` 中添加模拟设备
 
-### Q: 向量数据库初始化报错？
+### Q: 如何对接外部 MCP Server？
 
-如果使用 OpenAI 嵌入模型，请确认 `OPENAI_API_KEY` 已正确配置且网络可以访问 OpenAI API（可能需要代理）。
+1. 设置环境变量 `MCP_SERVER_URL` 为外部 Server 地址
+2. 确保外部 Server 实现了 `/mcp/v1/control` 接口
+3. 如果需要认证，设置 `MCP_API_KEY` 环境变量
 
-如果不想使用 OpenAI，可以使用 HuggingFace 开源嵌入模型，无需 API Key。
+### Q: MCP 请求失败怎么办？
 
-### Q: 如何添加新的智能设备？
+检查以下几点：
 
-1. 在 `oneNetConfig.json` 中添加设备的 JSON 配置
-2. 重新运行向量数据库初始化脚本
-3. 重启 `langgraph dev`
-
-### Q: 如何切换 LLM 供应商？
-
-修改 `common/configuration.py` 中的默认值，或在 LangGraph Studio 运行时通过 configurable 参数动态切换。
-
-## 开发指南
-
-### 添加新的 Agent 模块
-
-1. 创建新目录（如 `my_new_agent/`）
-2. 定义 `agent.py`（包含 LangGraph 工作流）和 `utils/`（nodes、state、prompts 等）
-3. 在 `langgraph.json` 的 `graphs` 中注册新 graph
-4. 如需作为子图，在父图中 import 并添加节点
-
-### 调试技巧
-
-- 使用 `langgraph dev` 启动后，在 LangGraph Studio 中可以可视化查看 graph 执行流程
-- 每个节点的输入输出状态都可以在 Studio 中查看
-- 可以断点调试单个节点的执行
+- `MCP_SERVER_URL` 是否正确设置
+- 外部 Server 是否正常运行
+- 请求格式是否符合 MCP 协议规范

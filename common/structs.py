@@ -29,8 +29,8 @@ class DeviceModelFactory:
         for key, value in properties.items():
             # 根据type mapping将json字段映射为python的字段
             field_type = self.type_mapping.get(value.get("type", "string"), Any)
-            # ...表示该字段是必填的
-            fields[key] = (field_type, ...)
+            # 字段设为可选，避免LLM输出时必填字段缺失导致验证失败
+            fields[key] = (Optional[field_type], None)
         # 动态创建pydantic类的类名
         model_name = f"{device_type.replace(' ', '')}Config"
         print(f"model_name:{model_name}")
@@ -50,6 +50,12 @@ class DeviceModelFactory:
     def get_union_type(self) -> Type[BaseModel]:
         # 将所有设备模型联合起来生成一个联合类型
         # 这个可以用在 LLM 输出 schema 上，代表可能是多个模型中的任意一个。
+        if not self.registry:
+            # 如果没有注册任何设备模型，返回基础的 DeviceCallConfig 类型
+            # 创建一个最小的默认配置类型
+            print("[警告] registry 为空，device_configs 可能未正确加载！")    # 提示用户检查 device_configs 是否正确加载
+            default_config = create_model('DefaultDeviceConfig')
+            return Union[(default_config,)]
         return Union[tuple(self.registry.values())]
 
     def get_model_by_type(self, device_type: str) -> Type[BaseModel]:
@@ -86,11 +92,20 @@ class Queries(BaseModel):
 class DeviceCall(BaseModel, Generic[ConfigT]):
     device_name: str
     device_id: str
-    config: ConfigT = Field(
+    action: str = Field(
+        default="",
+        description="要执行的动作，如 turn_on, turn_off, set_value 等"
+    )
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="动作参数，包含设备类型、设置值等"
+    )
+    config: Optional[ConfigT] = Field(
+        default=None,
         description="the params for device_call which comes from the device_configs",
-        json_schema_extra={"additionalProperties": False}  # 明确禁止额外属性
     )
     order: int = Field(
+        default=0,
         description="The order of the device call in the scene.",
     )
 
@@ -107,5 +122,13 @@ class DeviceResult(BaseModel):
     )
     message: str = Field(
         description="Message of the device call.",
+    )
+    device_id: str = Field(
+        description="The ID of the device.",
+        default=""
+    )
+    device_name: str = Field(
+        description="The name of the device.",
+        default=""
     )
     data: Any

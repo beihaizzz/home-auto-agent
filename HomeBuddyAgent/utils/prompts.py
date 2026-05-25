@@ -234,6 +234,13 @@ Instructions:
 2. Determine the appropriate parameters for each device. Use only the exact parameter names and value ranges specified in device_configs.
 3. If any information is ambiguous or missing, make a reasonable assumption based on common sense.
 
+Action types:
+- "turn_on": 打开设备，可同时设置其他参数（如温度、风速等）
+- "turn_off": 关闭设备
+- "set_value": 设置设备参数（如温度设为24度）
+- "get_status": 查询设备当前状态（不需要参数）
+- "toggle": 切换设备开关状态
+
 You MUST output a single JSON object matching the following JSON Schema exactly:
 
 ```json
@@ -243,11 +250,15 @@ You MUST output a single JSON object matching the following JSON Schema exactly:
 IMPORTANT:
 - Output ONLY the JSON object, no explanations, no markdown, no wrapping.
 - The top-level key must be "device_calls" with a JSON array as its value.
-- Each element in the array must have: device_name, device_id (from product_id.value), config (device params), order (starting from 1).
+- Each element in the array must have: device_name, device_id (from product_id.value), action, config (device params), order (starting from 1).
+- For "get_status" action, the config should be empty {}.
 - Do NOT nest the output in any additional wrapper object.
 
 Example output format:
-{"device_calls": [{"device_name": "d1", "device_id": "mD97Vya1hi", "config": {"led": true}, "order": 1}]}
+{"device_calls": [{"device_name": "d1", "device_id": "mD97Vya1hi", "action": "turn_on", "parameters": {"device_type": "light"}, "config": {"led": true}, "order": 1}]}
+
+Example for status query:
+{"device_calls": [{"device_name": "空调", "device_id": "aX23Jrf5xy", "action": "get_status", "parameters": {}, "config": {}, "order": 1}]}
 """
 
 command_router_prompt = """

@@ -7,6 +7,7 @@ from redis.asyncio import Redis as AsyncRedis  # 使用 redis.asyncio 的异步�
 
 from langchain_core.documents import Document
 from langchain_core.messages import ToolMessage
+from common.structs import DeviceCalls
 
 from langchain_core.tools import tool, InjectedToolCallId
 from langgraph.prebuilt import InjectedState
@@ -87,5 +88,10 @@ async def retriever_tool(query_list: List[str], tool_call_id: Annotated[str, Inj
         update={
             "messages": [tool_message],
             "device_configs": search_results,
+            "mcp_response": None,           
+            "feed_back": False,             
+            "device_call_results": [],      
+            "device_calls": DeviceCalls(device_calls=[]),  
+            "additional_info": [],          
         }
     )

@@ -4,6 +4,7 @@ from typing import List
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command, Send
+from langgraph.constants import END
 
 from HomeBuddyAgent.utils.structs import RouterScore
 from common.common_utils import get_search_params, select_and_execute_search, get_model
@@ -35,7 +36,6 @@ def filter(state: State):
     return {
         # 如果使用的工具中有state，就必须在调用之前将state中的键值初始化
         "messages": [HumanMessage(content=state['question'])],
-        "tool_cache": [],
         "device_configs": [],
         "answer": "",
         "feed_back": False,
@@ -46,6 +46,7 @@ def filter(state: State):
         "device_calls": DeviceCalls(
             device_calls=[]
         ),
+        "mcp_response": None,
         # "vector_store": vs
     }
 
@@ -382,6 +383,32 @@ def generate(state: State, config: RunnableConfig) -> Command[Literal["call_devi
         )
         factory = DeviceModelFactory()
         factory.generate_all(state['device_configs'])
+        
+        # 如果没有设备配置，直接生成最终回复
+        if not factory.registry:
+            print("[警告] 没有可用的设备配置，无法调用设备")
+            # 直接生成总结回复
+            model = get_model(
+                model_provider=configurable.writer_provider,
+                model_name=configurable.writer_model
+            )
+            template = Template(prompt_for_feedback, autoescape=False)
+            query = template.render(
+                {"question": [state["question"]],
+                 "device_configs": [docs_content],
+                 "additional_info": state["additional_info"],
+                 "device_call_result": []
+                 }
+            )
+            prompt = SystemMessage(content=query)
+            response = model.invoke(messages + [prompt])
+            return Command(
+                update={
+                    "answer": response.content if hasattr(response, 'content') else str(response),
+                    "messages": [AIMessage(content=response.content if hasattr(response, 'content') else str(response))]
+                },
+                goto=END
+            )
         ConfigUnion = factory.get_union_type()
         DeviceCallsDynamic = DeviceCalls[ConfigUnion]
         DeviceCallsDynamic.__name__ = "DeviceCallsDynamic"
@@ -448,9 +475,11 @@ def generate(state: State, config: RunnableConfig) -> Command[Literal["call_devi
         if "qwen" in qwen_providers and not configurable.think_switch:
             prompt = SystemMessage(content=f"{query}/no_think")
         response = model.invoke(messages + [prompt])
+        answer_content = response.content if hasattr(response, 'content') else str(response)
+        print(f"[生成回复] {answer_content}")
         return Command(
             update={
-                "answer": response.content,
+                "answer": answer_content,
                 "messages": messages + [SystemMessage(content=query)] + [response],
                 "feed_back": False
             },
@@ -503,10 +532,10 @@ def device_call(
         # 返回 Command 对象，更新状态
         return {
             "feed_back": True,
-            "device_call_results": result
+            "device_call_results": [result]
         }
     else:
-        print("====== Device Call Failed =====")
+        print("====== Device Call Failed ======")
         return {
             "feed_back": False,
             "messages": [AIMessage(content=f"设备调用失败：{result}")]
