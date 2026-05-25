@@ -197,9 +197,19 @@ class MCPDeviceController:
             if alias.lower() in action_lower or action_lower in alias.lower():
                 return standard_action
         
-        # 3. 未知动作返回原值
-        print(f"[MCP] 未知动作类型: {action}，直接传递原值")
-        return action
+        # 3. 处理具体的设置动作（如 set_temperature, set_brightness 等）
+        if action_lower.startswith("set_"):
+            return "set_value"
+        
+        # 4. 处理具体的开关动作
+        if action_lower.endswith("_on"):
+            return "turn_on"
+        if action_lower.endswith("_off"):
+            return "turn_off"
+        
+        # 5. 未知动作返回原值（会导致验证失败，但保留以便调试）
+        print(f"[MCP] 未知动作类型: {action}，映射为 set_value")
+        return "set_value"
     
     @property
     def client(self) -> SyncMCPClient:
@@ -228,19 +238,194 @@ class MCPDeviceController:
         
         # 映射动作和设备类型
         mcp_action = self._map_action_type(action_str)
+        
+        # 获取设备类型
         device_type_str = parameters.get("device_type", "switch")
         mcp_device_type = self._map_device_type(device_type_str)
         
-        # 处理参数
-        mcp_parameters: Dict[str, Any] = {}
+        # 收集所有有效的控制参数（从 parameters 和 config 中）
+        all_params: Dict[str, Any] = {}
         
-        if mcp_action == "set_value" or action_str in ["设置", "设定", "调节"]:
-            # 提取设置值
-            for key, value in parameters.items():
-                if key not in ["device_type", "device_name", "action"]:
-                    mcp_parameters["key"] = key
-                    mcp_parameters["value"] = value
-                    break
+        # 1. 从 parameters 提取（排除元数据字段）
+        for key, value in parameters.items():
+            if key not in ["device_type", "device_name", "action"] and value is not None:
+                all_params[key] = value
+        
+        # 2. 从 config 提取（排除 None 值）
+        if device_call.config:
+            config_dict = device_call.config if isinstance(device_call.config, dict) else device_call.config.model_dump()
+            for key, value in config_dict.items():
+                if key not in all_params and value is not None:
+                    all_params[key] = value
+        
+        # 3. 根据动作类型格式化参数
+        mcp_parameters: Dict[str, Any] = {}
+        errors: List[str] = []
+        
+        # 定义设备类型支持的参数列表
+        supported_params = {
+            "air_conditioner": ["power", "temperature", "fan_speed", "mode"],
+            "light": ["power", "brightness", "color", "color_temp", "led"],  # 添加 led 参数
+            "fan": ["power", "speed", "mode"],
+            "tv": ["power", "volume", "channel", "picture_mode"],
+            "humidifier": ["power", "humidity_level", "mist_output"],  # 添加 mist_output 参数
+            "speaker": ["power", "volume", "sound_mode"],  # 添加 sound_mode
+            "heater": ["power", "temperature", "mode"],
+            "curtain": ["power", "position", "auto_mode", "open_close"],  # 添加 auto_mode, open_close
+            "lock": ["power", "locked", "fingerprint_unlock", "alarm"],  # 添加指纹和警报参数
+            "switch": ["power"],
+            "battery": ["power", "battery_display", "charging", "power_saving"]  # 电池设备
+        }
+        
+        # 定义参数别名映射（将旧名称映射到标准名称）
+        param_aliases = {
+            "led": "power",  # LED灯的 led 参数映射到 power
+            "brightness": "brightness",
+            "color_temp": "color_temp",
+        }
+        
+        # 参数别名转换（将设备配置中的参数名转换为标准参数名）
+        if "led" in all_params and "power" not in all_params:
+            all_params["power"] = all_params.pop("led")
+        if "open_close" in all_params and "power" not in all_params:
+            all_params["power"] = all_params.pop("open_close")
+        if "lock" in all_params and "locked" not in all_params:
+            all_params["locked"] = all_params.pop("lock")
+        
+        # 定义参数值范围验证
+        param_ranges = {
+            "temperature": (16, 30),
+            "brightness": (0, 100),
+            "volume": (0, 100),
+            "fan_speed": (1, 5),
+            "humidity_level": (30, 80),
+            "mist_output": (1, 3),  # 雾量大小
+            "channel": (1, 999),
+            "position": (0, 100)
+        }
+        
+        # 获取当前设备类型支持的参数
+        device_supported_params = supported_params.get(mcp_device_type.lower(), [])
+        
+        # 智能动作转换：根据 power 参数自动调整动作类型
+        power_value = all_params.get("power")
+        if mcp_action == "set_value":
+            if power_value in [True, "true", "on", "开"]:
+                mcp_action = "turn_on"
+            elif power_value in [False, "false", "off", "关"]:
+                mcp_action = "turn_off"
+        
+        if mcp_action == "set_value":
+            # set_value 动作支持批量设置多个参数
+            # 格式: {"key": "...", "value": ...} 或 {"temperature": 24, "fan_speed": 3}
+            
+            # 如果明确指定了 key/value，使用单参数模式
+            if "key" in all_params and "value" in all_params:
+                mcp_parameters = {"key": all_params["key"], "value": all_params["value"]}
+                
+                # 验证参数是否支持
+                if device_supported_params and all_params["key"] not in device_supported_params:
+                    errors.append(f"设备类型 '{mcp_device_type}' 不支持参数 '{all_params['key']}'")
+                
+                # 验证参数值范围
+                key, value = all_params["key"], all_params["value"]
+                if key in param_ranges:
+                    min_val, max_val = param_ranges[key]
+                    if isinstance(value, (int, float)) and (value < min_val or value > max_val):
+                        errors.append(f"参数 '{key}' 的值 {value} 超出范围 [{min_val}, {max_val}]")
+            else:
+                # 批量参数模式：收集所有非元数据参数
+                valid_params = {}
+                for key, value in all_params.items():
+                    if key not in ["device_type", "device_name", "action", "power"] and value is not None:
+                        # 验证参数是否支持
+                        if device_supported_params and key not in device_supported_params:
+                            errors.append(f"设备类型 '{mcp_device_type}' 不支持参数 '{key}'")
+                            continue
+                        
+                        # 验证参数值范围
+                        if key in param_ranges:
+                            min_val, max_val = param_ranges[key]
+                            if isinstance(value, (int, float)) and (value < min_val or value > max_val):
+                                errors.append(f"参数 '{key}' 的值 {value} 超出范围 [{min_val}, {max_val}]")
+                                continue
+                        
+                        valid_params[key] = value
+                
+                if valid_params:
+                    # 如果只有一个参数，使用单 key-value 格式
+                    if len(valid_params) == 1:
+                        key, value = next(iter(valid_params.items()))
+                        mcp_parameters = {"key": key, "value": value}
+                    else:
+                        # 多个参数，使用批量设置格式
+                        mcp_parameters = {"batch": valid_params}
+                else:
+                    errors.append("没有有效的设置参数")
+                    
+        elif mcp_action == "turn_on":
+            # turn_on 动作，设置 power 为 on，并支持同时设置其他参数
+            mcp_parameters = {"key": "power", "value": "on"}
+            
+            # 收集其他需要同时设置的参数
+            other_params = {}
+            for key, value in all_params.items():
+                if key not in ["device_type", "device_name", "action", "power"] and value is not None:
+                    # 验证参数是否支持
+                    if device_supported_params and key not in device_supported_params:
+                        errors.append(f"设备类型 '{mcp_device_type}' 不支持参数 '{key}'")
+                        continue
+                    
+                    # 验证参数值范围
+                    if key in param_ranges:
+                        min_val, max_val = param_ranges[key]
+                        if isinstance(value, (int, float)) and (value < min_val or value > max_val):
+                            errors.append(f"参数 '{key}' 的值 {value} 超出范围 [{min_val}, {max_val}]")
+                            continue
+                    
+                    other_params[key] = value
+            
+            if other_params:
+                mcp_parameters["additional"] = other_params
+                
+        elif mcp_action == "turn_off":
+            # turn_off 动作，设置 power 为 off（关闭时不需要其他参数）
+            mcp_parameters = {"key": "power", "value": "off"}
+            
+            # 检查是否有多余参数（关闭时设置其他参数通常没有意义）
+            extra_params = [k for k in all_params.keys() 
+                           if k not in ["device_type", "device_name", "action", "power"]]
+            if extra_params:
+                errors.append(f"关闭设备时不需要参数: {', '.join(extra_params)}")
+                
+        elif mcp_action == "toggle":
+            # toggle 动作，切换设备状态（不需要参数）
+            mcp_parameters = {}
+            
+            # 检查是否有多余参数
+            extra_params = [k for k in all_params.keys() 
+                           if k not in ["device_type", "device_name", "action"]]
+            if extra_params:
+                errors.append(f"切换动作不需要参数: {', '.join(extra_params)}")
+                
+        elif mcp_action == "get_status":
+            # get_status 动作，获取设备状态（不需要参数）
+            mcp_parameters = {}
+            
+            # 检查是否有多余参数
+            extra_params = [k for k in all_params.keys() 
+                           if k not in ["device_type", "device_name", "action"]]
+            if extra_params:
+                errors.append(f"状态查询不需要参数: {', '.join(extra_params)}")
+                
+        else:
+            # 其他动作，直接传递所有参数
+            mcp_parameters = all_params
+        
+        # 如果有错误，记录警告
+        if errors:
+            error_msg = "; ".join(errors)
+            print(f"[MCP] 参数验证警告: {error_msg}")
         
         return MCPDeviceControl(
             device_id=device_call.device_id,
@@ -342,7 +527,7 @@ def mcp_device_call(state: State) -> Dict[str, Any]:
         print("没有设备调用指令")
         return {
             "device_call_results": [],
-            "feed_back": False
+            "feed_back": True  # 没有设备调用，也应该结束
         }
     
     try:
@@ -354,16 +539,14 @@ def mcp_device_call(state: State) -> Dict[str, Any]:
         
         device_results = mcp_controller.convert_mcp_response_to_device_results(response)
         
-        if isinstance(response, MCPError):
-            all_success = False
-        else:
-            all_success = all(r.success for r in device_results)
-        
         print(f"MCP调用完成，状态: {response.overall_status if hasattr(response, 'overall_status') else 'error'}")
+        print(device_results)
         
+        # 无论成功还是失败，都应该设置 feed_back=True
+        # 让工作流继续到 generate 节点生成最终回复
         return {
             "device_call_results": device_results,
-            "feed_back": all_success,
+            "feed_back": True,  # 始终设置为 True，避免循环调用
             "mcp_response": response
         }
     
@@ -382,5 +565,5 @@ def mcp_device_call(state: State) -> Dict[str, Any]:
         
         return {
             "device_call_results": error_results,
-            "feed_back": False
+            "feed_back": True  # 始终设置为 True，避免循环调用
         }

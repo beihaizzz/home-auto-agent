@@ -65,7 +65,7 @@ def retrieve(state: State):
     return {"context": retrieved_docs, "tool_using": False}
 
 
-def generate(state: State, config: RunnableConfig) -> Command[Literal["action", "__end__"]]:
+def generate(state: State, config: RunnableConfig) -> Command[Literal["call_devices", "__end__"]]:
     """
     Generate answer
 
@@ -117,7 +117,7 @@ def generate(state: State, config: RunnableConfig) -> Command[Literal["action", 
                 "device_calls": response,
                 "messages": [AIMessage(content=f"正在调用设备：{response}....")]
             },
-            goto="action"
+            goto="call_devices"
         )
 
     else:
@@ -210,10 +210,10 @@ def device_call(
         # 返回 Command 对象，更新状态
         return {
             "feed_back": True,
-            "device_call_results": result
+            "device_call_results": [result]
         }
     else:
-        print("====== Device Call Failed =====")
+        print("====== Device Call Failed ======")
         return {
             "feed_back": False,
             "messages": [AIMessage(content=f"设备调用失败：{result}")]

@@ -28,37 +28,91 @@ from common.mcp.protocol import (
 
 # 模拟设备数据
 MOCK_DEVICES = {
-    "dev_001": {
-        "device_id": "dev_001",
-        "device_name": "客厅空调",
+    "mD97Vya1hi": {
+        "device_id": "mD97Vya1hi",
+        "device_name": "LED灯",
+        "device_type": "light",
+        "location": "卧室",
+        "status": {"power": "off"},
+        "capabilities": ["turn_on", "turn_off", "set_value", "get_status"]
+    },
+    "aX23Jrf5xy": {
+        "device_id": "aX23Jrf5xy",
+        "device_name": "空调",
         "device_type": "air_conditioner",
         "location": "客厅",
         "status": {"power": "off", "temperature": 26},
         "capabilities": ["turn_on", "turn_off", "set_value", "get_status"]
     },
-    "dev_002": {
-        "device_id": "dev_002",
-        "device_name": "卧室灯",
-        "device_type": "light",
-        "location": "卧室",
-        "status": {"power": "off", "brightness": 50},
+    "pR65Xtq3lc": {
+        "device_id": "pR65Xtq3lc",
+        "device_name": "风扇",
+        "device_type": "fan",
+        "location": "客厅",
+        "status": {"power": "off", "fan_speed": 1, "oscillation": False},
         "capabilities": ["turn_on", "turn_off", "set_value", "get_status"]
     },
-    "dev_003": {
-        "device_id": "dev_003",
-        "device_name": "客厅窗帘",
-        "device_type": "curtain",
+    "zD81Vyr8jh": {
+        "device_id": "zD81Vyr8jh",
+        "device_name": "加湿器",
+        "device_type": "humidifier",
+        "location": "卧室",
+        "status": {"power": "off", "humidity_level": 40, "mist_output": 2},
+        "capabilities": ["turn_on", "turn_off", "set_value", "get_status"]
+    },
+    "vC38Ltz9mn": {
+        "device_id": "vC38Ltz9mn",
+        "device_name": "音箱",
+        "device_type": "speaker",
         "location": "客厅",
-        "status": {"position": 0},
+        "status": {"power": "off", "volume": 50, "sound_mode": "音乐"},
+        "capabilities": ["turn_on", "turn_off", "set_value", "get_status"]
+    },
+    "xE74Jql1pv": {
+        "device_id": "xE74Jql1pv",
+        "device_name": "电池",
+        "device_type": "battery",
+        "location": "卧室",
+        "status": {"battery_display": True, "charging": False, "power_saving": False},
+        "capabilities": ["set_value", "get_status"]
+    },
+    "cD89Tgh2xz": {
+        "device_id": "cD89Tgh2xz",
+        "device_name": "电视",
+        "device_type": "tv",
+        "location": "客厅",
+        "status": {"power": "off", "volume": 30, "channel": 1, "picture_mode": "标准"},
+        "capabilities": ["turn_on", "turn_off", "set_value", "get_status"]
+    },
+    "wJ12Xtm6yb": {
+        "device_id": "wJ12Xtm6yb",
+        "device_name": "窗帘",
+        "device_type": "curtain",
+        "location": "卧室",
+        "status": {"power": "off", "position": 0, "auto_mode": False},
+        "capabilities": ["turn_on", "turn_off", "set_value", "get_status"]
+    },
+    "mN41Kyq9zf": {
+        "device_id": "mN41Kyq9zf",
+        "device_name": "门锁",
+        "device_type": "lock",
+        "location": "大门",
+        "status": {"locked": True, "fingerprint_unlock": True, "alarm": False},
         "capabilities": ["turn_on", "turn_off", "set_value", "get_status"]
     }
 }
 
 # 设备状态存储
 device_states = {
-    "dev_001": {"power": "off", "temperature": 26},
-    "dev_002": {"power": "off", "brightness": 50},
-    "dev_003": {"position": 0}
+    "mD97Vya1hi": {"power": "off"},
+    "aX23Jrf5xy": {"power": "off", "temperature": 26, "fan_speed": 1, "mode": "自动"},
+    "pR65Xtq3lc": {"power": "off", "fan_speed": 1, "oscillation": False},
+    "zD81Vyr8jh": {"power": "off", "humidity_level": 40, "mist_output": 2},
+    "vC38Ltz9mn": {"power": "off", "volume": 50, "sound_mode": "音乐"},
+    "xE74Jql1pv": {"battery_display": True, "charging": False, "power_saving": False},
+    "cD89Tgh2xz": {"power": "off", "volume": 30, "channel": 1, "picture_mode": "标准"},
+    "wJ12Xtm6yb": {"power": "off", "position": 0, "auto_mode": False},
+    "mN41Kyq9zf": {"locked": True, "fingerprint_unlock": True, "alarm": False}
 }
 
 # 初始化FastAPI应用
@@ -166,20 +220,45 @@ async def execute_device_control(control: MCPDeviceControl) -> MCPDeviceResult:
         if action == "turn_on":
             device_states[control.device_id]["power"] = "on"
             message = f"已打开 {device_info['device_name']}"
+            
+            # 处理附加参数（如 temperature, fan_speed 等）
+            params = control.parameters or {}
+            additional = params.get("additional", {})
+            if additional:
+                for key, value in additional.items():
+                    device_states[control.device_id][key] = value
+                    message += f", {key}设为{value}"
+            
+            # 处理批量设置参数
+            batch = params.get("batch", {})
+            if batch:
+                for key, value in batch.items():
+                    device_states[control.device_id][key] = value
+                    message += f", {key}设为{value}"
         elif action == "turn_off":
             device_states[control.device_id]["power"] = "off"
             message = f"已关闭 {device_info['device_name']}"
         elif action == "set_value":
             params = control.parameters or {}
-            key = params.get("key", "temperature")
-            value = params.get("value")
-
-            if value is not None:
-                device_states[control.device_id][key] = value
-                message = f"{device_info['device_name']} 的 {key} 已设置为 {value}"
+            
+            # 处理批量设置参数
+            batch = params.get("batch", {})
+            if batch:
+                for key, value in batch.items():
+                    device_states[control.device_id][key] = value
+                    message += f"{device_info['device_name']} 的 {key} 已设置为 {value}; "
+                message = message.rstrip("; ")
             else:
-                success = False
-                message = "缺少value参数"
+                # 单参数设置
+                key = params.get("key", "temperature")
+                value = params.get("value")
+
+                if value is not None:
+                    device_states[control.device_id][key] = value
+                    message = f"{device_info['device_name']} 的 {key} 已设置为 {value}"
+                else:
+                    success = False
+                    message = "缺少value参数"
         elif action == "get_status":
             message = f"获取 {device_info['device_name']} 状态成功"
         elif action == "toggle":

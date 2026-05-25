@@ -8,6 +8,7 @@ from langchain_core.documents import Document
 from HomeBuddyAgent.utils.structs import AdditionalInfo
 from common.structs import DeviceCall, DeviceResult, DeviceCalls, SearchQuery, ConfigT
 
+from common.mcp import MCPResponse, MCPError
 
 def reduce_feed_back(existing: Optional[bool], new: Optional[bool]) -> bool:
     """归约 feed_back 的布尔值，取最后一个非 None 值或默认 False"""
@@ -50,7 +51,7 @@ class State(MessagesState):
     device_calls: DeviceCalls[ConfigT]
     additional_info: Annotated[List[AdditionalInfo], reduce_additional_info]
     # vector_store: Chroma
-
+    mcp_response: Optional[MCPResponse | MCPError] = None  # MCP Server 返回的完整响应，包含设备状态信息    
 
 class InfoState(TypedDict):
     question: str

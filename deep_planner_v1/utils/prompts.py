@@ -161,10 +161,7 @@ times, and involved devices.
 2. Review the source_strs to gather relevant information about optimal device settings, environmental factors, 
 and best practices for the given scene.
 
-3. For each device involved in the scene, create a DeviceCall object with the following information: a. device_name: 
-The name or type of the device b. device_id: The ID of the device as provided in the scene information c. params: A 
-dictionary of parameters for the device, based on the scene requirements and information from source_strs d. order: 
-The order in which the device should be activated or adjusted in the scene (starting from 0)
+3. For each device involved in the scene, create a DeviceCall object with the following information: a. device_name: The name or type of the device b. device_id: The ID of the device as provided in the scene information c. action: The action to perform (e.g., turn_on, turn_off, set_value) d. parameters: Additional parameters for the action (e.g., {"device_type": "light"}) e. config: A dictionary of device-specific parameters, based on the scene requirements and information from source_strs f. order: The order in which the device should be activated or adjusted in the scene (starting from 0)
 
 4. Consider the logical sequence of device activations or adjustments when assigning the order value to each DeviceCall.
 
@@ -190,6 +187,12 @@ Use the following format for your output:
 class DeviceCall(BaseModel, Generic[ConfigT]):
     device_name: str
     device_id: str
+    action: str = Field(
+        description="The action to perform (e.g., turn_on, turn_off, set_value)",
+    )
+    parameters: Dict[str, Any] = Field(
+        description="Additional parameters for the action (e.g., {\"device_type\": \"light\"})",
+    )
     config: ConfigT = Field(
         description="the params for device_call which comes from the device_configs",
     )

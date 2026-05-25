@@ -27,7 +27,7 @@ MCPActionType = Literal[
 
 MCPDeviceType = Literal[
     "air_conditioner", "light", "curtain", "heater", "fan",
-    "tv", "speaker", "switch", "sensor", "scene"
+    "tv", "speaker", "switch", "sensor", "scene", "humidifier"
 ]
 """MCP设备类型"""
 
